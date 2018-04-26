@@ -34,7 +34,7 @@ void aef_init(audioeffect *ae)
 	set_eqdefaults(eqd);
 
 	strcpy(ae->name, "Equalizer");
-	audioeffect_allocateparameters(ae, 13);
+	audioeffect_allocateparameters(ae, 14);
 	audioeffect_initparameter(ae,  0, "Enable", 0.0, 1.0, 0.0, 1.0, 1, pt_switch);
 	audioeffect_initparameter(ae,  1, eqd->eqlabels[0], -12.0, 12.0, 0.0, 0.1, 0, pt_scale);
 	audioeffect_initparameter(ae,  2, eqd->eqlabels[1], -12.0, 12.0, 0.0, 0.1, 0, pt_scale);
@@ -48,7 +48,7 @@ void aef_init(audioeffect *ae)
 	audioeffect_initparameter(ae, 10, eqd->eqlabels[9], -12.0, 12.0, 0.0, 0.1, 0, pt_scale);
 	audioeffect_initparameter(ae, 11, "Gain", 0.0, 2.0, 1.0, 0.1, 0, pt_scale);
 	audioeffect_initparameter(ae, 12, "Auto", 0.0, 1.0, 1.0, 1.0, 0, pt_switch);
-
+	audioeffect_initparameter(ae, 13, "Preset", 0.0, 6.0, 1.0, 1.0, 1, pt_combo);
 
 	equalizerdata->format = ae->format;
 	equalizerdata->rate = ae->rate;
@@ -93,6 +93,95 @@ void aef_setparameter(audioeffect *ae, int i, float value)
 			break;
 		case 12:
 			eq->autoleveling = ae->parameter[i].value;
+			break;
+		case 13:
+			switch ((int)ae->parameter[i].value)
+			{
+				case 0:
+					audioeffect_setdependentparameter(ae, 1, 0.0);
+					audioeffect_setdependentparameter(ae, 2, 0.0);
+					audioeffect_setdependentparameter(ae, 3, 0.0);
+					audioeffect_setdependentparameter(ae, 4, 0.0);
+					audioeffect_setdependentparameter(ae, 5, 0.0);
+					audioeffect_setdependentparameter(ae, 6, 0.0);
+					audioeffect_setdependentparameter(ae, 7, 0.0);
+					audioeffect_setdependentparameter(ae, 8, 0.0);
+					audioeffect_setdependentparameter(ae, 9, 0.0);
+					audioeffect_setdependentparameter(ae, 10, 0.0);
+					break;
+				case 1:
+					audioeffect_setdependentparameter(ae, 1, 4.6);
+					audioeffect_setdependentparameter(ae, 2, 4.6);
+					audioeffect_setdependentparameter(ae, 3, 2.3);
+					audioeffect_setdependentparameter(ae, 4, 0.0);
+					audioeffect_setdependentparameter(ae, 5, -5.4);
+					audioeffect_setdependentparameter(ae, 6, -5.4);
+					audioeffect_setdependentparameter(ae, 7, 0.0);
+					audioeffect_setdependentparameter(ae, 8, 3.0);
+					audioeffect_setdependentparameter(ae, 9, 5.9);
+					audioeffect_setdependentparameter(ae, 10, 5.9);
+					break;				
+				case 2:
+					audioeffect_setdependentparameter(ae, 1, 2.4);
+					audioeffect_setdependentparameter(ae, 2, 1.8);
+					audioeffect_setdependentparameter(ae, 3, 0.0);
+					audioeffect_setdependentparameter(ae, 4, -2.4);
+					audioeffect_setdependentparameter(ae, 5, -2.4);
+					audioeffect_setdependentparameter(ae, 6, -1.6);
+					audioeffect_setdependentparameter(ae, 7, 2.7);
+					audioeffect_setdependentparameter(ae, 8, 3.7);
+					audioeffect_setdependentparameter(ae, 9, 4.0);
+					audioeffect_setdependentparameter(ae, 10, 4.0);
+					break;
+				case 3:
+					audioeffect_setdependentparameter(ae, 1, 1.6);
+					audioeffect_setdependentparameter(ae, 2, 3.7);
+					audioeffect_setdependentparameter(ae, 3, 1.8);
+					audioeffect_setdependentparameter(ae, 4, -1.1);
+					audioeffect_setdependentparameter(ae, 5, -0.8);
+					audioeffect_setdependentparameter(ae, 6, 0.5);
+					audioeffect_setdependentparameter(ae, 7, 1.6);
+					audioeffect_setdependentparameter(ae, 8, 3.2);
+					audioeffect_setdependentparameter(ae, 9, 4.3);
+					audioeffect_setdependentparameter(ae, 10, 4.6);
+					break;
+				case 4:
+					audioeffect_setdependentparameter(ae, 1, -0.5);
+					audioeffect_setdependentparameter(ae, 2, 1.6);
+					audioeffect_setdependentparameter(ae, 3, 2.4);
+					audioeffect_setdependentparameter(ae, 4, 2.6);
+					audioeffect_setdependentparameter(ae, 5, 1.8);
+					audioeffect_setdependentparameter(ae, 6, 0.0);
+					audioeffect_setdependentparameter(ae, 7, -0.8);
+					audioeffect_setdependentparameter(ae, 8, -0.8);
+					audioeffect_setdependentparameter(ae, 9, -0.5);
+					audioeffect_setdependentparameter(ae, 10, -0.5);
+					break;
+				case 5:
+					audioeffect_setdependentparameter(ae, 1, 2.6);
+					audioeffect_setdependentparameter(ae, 2, 1.6);
+					audioeffect_setdependentparameter(ae, 3, -1.8);
+					audioeffect_setdependentparameter(ae, 4, -2.6);
+					audioeffect_setdependentparameter(ae, 5, -1.1);
+					audioeffect_setdependentparameter(ae, 6, 1.3);
+					audioeffect_setdependentparameter(ae, 7, 2.9);
+					audioeffect_setdependentparameter(ae, 8, 3.7);
+					audioeffect_setdependentparameter(ae, 9, 3.7);
+					audioeffect_setdependentparameter(ae, 10, 3.7);
+					break;
+				case 6:
+					audioeffect_setdependentparameter(ae, 1, 2.6);
+					audioeffect_setdependentparameter(ae, 2, 1.8);
+					audioeffect_setdependentparameter(ae, 3, 0.0);
+					audioeffect_setdependentparameter(ae, 4, -2.6);
+					audioeffect_setdependentparameter(ae, 5, -1.6);
+					audioeffect_setdependentparameter(ae, 6, 0.0);
+					audioeffect_setdependentparameter(ae, 7, 2.6);
+					audioeffect_setdependentparameter(ae, 8, 3.2);
+					audioeffect_setdependentparameter(ae, 9, 3.2);
+					audioeffect_setdependentparameter(ae, 10, 2.6);
+					break;
+			}
 			break;
 	}
 //printf("aef_setparameter %d = %2.2f\n", i, ae->parameter[i].value);

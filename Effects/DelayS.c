@@ -44,13 +44,28 @@ void sounddelay_init(int N, dly_type delaytype, float millisec, float feedback, 
 	s->feedback = feedback;
 	s->millisec = millisec;
 	s->fbuffer = NULL;
+
+	switch (s->delaytype)
+	{
+		case DLY_ECHO: 
+			s->prescale = sqrt(1.0 - s->feedback*s->feedback); // prescale=sqrt(sum(r^2n)), n=0..infinite
+			break;
+		case DLY_DELAY:
+			s->prescale = 1.0 / sqrt(1.0 + s->feedback*s->feedback); // prescale = 1/sqrt(1 + r^2)
+			break;
+		case DLY_REVERB:
+			s->prescale = sqrt((1.0 - s->feedback*s->feedback)/(((float)(s->N-1))*s->feedback*s->feedback + 1.0)); // prescale=sqrt(sum(r^2n)-1), for all channels, n=0..infinite
+			break;
+		case DLY_LATE: // Single delayed signal, no original
+			s->prescale = 1.0;
+			break;
+	}
 	//printf("Delay initialized, type %d, %5.2f ms, %5.2f feedback, %d rate, %d channels\n", s->delaytype, s->millisec, s->feedback, s->rate, s->channels);
 }
 
 void sounddelay_add(char* inbuffer, int inbuffersize, sounddelay *s)
 {
 	int i;
-	float prescale;
 	signed short *inshort;
 
 	if (!s->fbuffer)
@@ -75,20 +90,18 @@ void sounddelay_add(char* inbuffer, int inbuffersize, sounddelay *s)
 	switch (s->delaytype)
 	{
 		case DLY_ECHO: // Repeating echo added to original
-			prescale = sqrt(1 - s->feedback*s->feedback); // prescale=sqrt(sum(r^2n)), n=0..infinite
 			for(i=0; i<s->insamples; i++)
 			{
-				inshort[i]*=prescale;
+				inshort[i]*=s->prescale;
 				s->fshort[s->rear++] = inshort[i] += s->fshort[s->front++]*s->feedback;
 				s->front%=s->fbuffersamples;
 				s->rear%=s->fbuffersamples;
 			}
 			break;
 		case DLY_DELAY: // Single delayed signal added to original
-			prescale = 1 / sqrt(1 + s->feedback*s->feedback); // prescale = 1/sqrt(1 + r^2)
 			for(i=0;i<s->insamples; i++)
 			{
-				inshort[i]*=prescale;
+				inshort[i]*=s->prescale;
 				s->fshort[s->rear++] = inshort[i];
 				inshort[i] += s->fshort[s->front++]*s->feedback;
 				s->front%=s->fbuffersamples;
@@ -96,12 +109,10 @@ void sounddelay_add(char* inbuffer, int inbuffersize, sounddelay *s)
 			}
 			break;
 		case DLY_REVERB: // Only repeating echo, no original
-			//prescale = sqrt(1 - s->feedback*s->feedback); // prescale=sqrt(sum(r^2n)), n=0..infinite
-			prescale = sqrt((1.0-s->feedback*s->feedback)/((s->N-1)*s->feedback*s->feedback+1.0)); // prescale=sqrt(sum(r^2n)-1), for all channels, n=0..infinite
 			for(i=0; i<s->insamples; i++)
 			{
 				//s->fshort[s->rear++] = inshort[i]*prescale + s->fshort[s->front++]*s->feedback;
-				s->fshort[s->rear++] = (inshort[i]*prescale + s->fshort[s->front++])*s->feedback;
+				s->fshort[s->rear++] = (inshort[i]*s->prescale + s->fshort[s->front++])*s->feedback;
 				s->front%=s->fbuffersamples;
 				s->rear%=s->fbuffersamples;
 			}
@@ -127,4 +138,12 @@ void sounddelay_close(sounddelay *s)
 		free(s->fbuffer);
 		s->fbuffer = NULL;
 	}
+}
+
+signed short sounddelay_readsample(sounddelay *s)
+{
+	signed short sample = s->fshort[s->readfront++];
+	s->readfront%=s->fbuffersamples;
+
+	return sample;
 }

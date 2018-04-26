@@ -22,6 +22,7 @@ typedef struct
 	float feedback; // feedback level 0.0 .. 1.0
 	float millisec; // delay in milliseconds
 	int N; // parallel delays
+	float prescale;
 
 	int physicalwidth; // bits per sample
 	char *fbuffer;
@@ -41,4 +42,5 @@ void sounddelay_reinit(int N, dly_type delaytype, float millisec, float feedback
 void sounddelay_init(int N, dly_type delaytype, float millisec, float feedback, snd_pcm_format_t format, unsigned int rate, unsigned int channels, sounddelay *s);
 void sounddelay_add(char* inbuffer, int inbuffersize, sounddelay *s);
 void sounddelay_close(sounddelay *s);
+signed short sounddelay_readsample(sounddelay *s);
 #endif

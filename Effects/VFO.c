@@ -150,7 +150,7 @@ void soundvfo_add(char* inbuffer, int inbuffersize, soundvfo *v)
 
 void soundvfo_close(soundvfo *v)
 {
-	if (!v->vfobuf)
+	if (v->vfobuf)
 	{
 		free(v->vfobuf);
 		v->vfobuf = NULL;
