@@ -22,7 +22,7 @@
  */
 
 // compile with gcc -Wall -c "%f" -std=c99 -D__STDC_CONSTANT_MACROS -D__STDC_LIMIT_MACROS -DTARGET_POSIX -D_LINUX -fPIC -DPIC -D_REENTRANT -D_LARGEFILE64_SOURCE -D_FILE_OFFSET_BITS=64 -U_FORTIFY_SOURCE -g -ftree-vectorize -pipe -Wno-psabi $(pkg-config --cflags gtk+-3.0) -Wno-deprecated-declarations
-// link with gcc -Wall -o "%e" "%f" VStudio.o VSJam.o VSEffect.o AudioDev.o AudioMic.o AudioMixer.o AudioSpk.o -fPIC -D_POSIX_C_SOURCE=199309L $(pkg-config --cflags gtk+-3.0) -Wl,--whole-archive -lpthread -lrt -ldl -lm -Wl,--no-whole-archive -rdynamic $(pkg-config --libs gtk+-3.0) $(pkg-config --libs libavcodec libavformat libavutil libswscale) -lasound $(pkg-config --libs sqlite3)
+// link with gcc -Wall -o "%e" "%f" VStudio.o VSJam.o VSEffect.o AudioDev.o AudioMic.o AudioMixer.o AudioSpk.o -fPIC -D_POSIX_C_SOURCE=199309L $(pkg-config --cflags gtk+-3.0) -Wl,--whole-archive -lpthread -lrt -ldl -lm -Wl,--no-whole-archive -rdynamic $(pkg-config --libs gtk+-3.0) $(pkg-config --libs libavcodec libavformat libavutil libswscale libswresample) -lasound $(pkg-config --libs sqlite3)
 
 #define _GNU_SOURCE
 
@@ -73,7 +73,9 @@ int main(int argc, char **argv)
 
 	setlocale(LC_ALL, "tr_TR.UTF-8");
 
-	setup_default_icon("./VSHost.png");
+	setup_default_icon("./images/VSHost.png");
+
+	XInitThreads();
 
 	gtk_init(&argc, &argv);
 

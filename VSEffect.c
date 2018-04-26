@@ -209,7 +209,7 @@ void audioeffect_init(audioeffect *ae, int id)
 			case pt_combo:
 				w = ae->parameter[i].pwidget = gtk_combo_box_text_new();
 				combo_readfromfile(w, ae->parameter[i].confpath);
-				sprintf(s, "%2.2f", ae->parameter[i].minval);
+				sprintf(s, "%2.2f", ae->parameter[i].value);
 				g_object_set((gpointer)w, "active-id", s, NULL);
 				g_signal_connect(GTK_COMBO_BOX(w), "changed", G_CALLBACK(combo_changed), &(ae->parameter[i]));
 				gtk_container_add(GTK_CONTAINER(ae->parameter[i].vbox), w);
@@ -382,11 +382,20 @@ gboolean audioeffectchain_led(gpointer data)
 
 //printf("%s -> %s\n", aec->name, (aec->tp.mic.status == MC_RUNNING?"green":"red"));
 
-	if (aec->tp.mic.status == MC_RUNNING)
-		gtk_image_set_from_file(GTK_IMAGE(aec->led), "./images/green.png");
+	if (get_devicetype(aec->tp.device)==hardwaredevice)
+	{
+		if (aec->tp.mic.status == MC_RUNNING)
+			gtk_image_set_from_file(GTK_IMAGE(aec->led), "./images/green.png");
+		else
+			gtk_image_set_from_file(GTK_IMAGE(aec->led), "./images/red.png");
+	}
 	else
-		gtk_image_set_from_file(GTK_IMAGE(aec->led), "./images/red.png");
-
+	{
+		if (aec->tp.vpw.ap.status == CQ_RUNNING)
+			gtk_image_set_from_file(GTK_IMAGE(aec->led), "./images/green.png");
+		else
+			gtk_image_set_from_file(GTK_IMAGE(aec->led), "./images/red.png");		
+	}
 	return FALSE;
 }
 
@@ -457,9 +466,84 @@ void audioeffectchain_create_thread(audioeffectchain *aec, char *device, unsigne
 	}
 }
 
+static gpointer audioeffectchain_thread_ffmpeg0(gpointer args)
+{
+	int ctype = PTHREAD_CANCEL_ASYNCHRONOUS;
+	int ctype_old;
+	pthread_setcanceltype(ctype, &ctype_old);
+
+	audioeffectchain *aec = (audioeffectchain *)args;
+	threadparameters *tp = (threadparameters *)&(aec->tp);
+	playlistparams *plp = &(tp->plparams);
+	vpwidgets *vpw = &(tp->vpw);
+
+	init_playlistparams(plp, vpw, 20, aec->format, aec->rate, aec->channels, aec->frames, 20*1024, 4); // video, frames, cqframes, thread_count
+	init_videoplayerwidgets(plp, 640, 360);
+
+	connect_audiojack(tp->channelbuffers, &(tp->jack), aec->mx);
+
+	gdk_threads_add_idle(audioeffectchain_led, aec);
+	audiopipe *ap = &(tp->vpw.ap);
+	while (audioCQ_remove(ap) == CQ_RUNNING)
+	{
+		// Process input frames here
+		audioeffectchain_process(aec, ap->buffer, ap->buffersize);
+//printf("%s %d\n", aec->device, ap->buffersize);
+		writetojack(ap->buffer, ap->buffersize, &(tp->jack));
+	}
+	press_vp_stop_button(plp);
+
+	close_audiojack(&(tp->jack));
+
+	close_videoplayerwidgets(vpw);
+	close_playlistparams(plp);
+
+//printf("exiting %s\n", aec->name);
+	aec->tp.retval = 0;
+	pthread_exit(&(aec->tp.retval));
+}
+
+void audioeffectchain_create_thread_ffmpeg(audioeffectchain *aec, char *device, unsigned int frames, int channelbuffers, audiomixer *mx)
+{
+	int err;
+
+	aec->mx = mx;
+	aec->tp.aec = aec;
+	strcpy(aec->tp.device, device);
+	aec->tp.frames = frames;
+	aec->tp.channelbuffers = channelbuffers;
+
+	err = pthread_create(&(aec->tp.tid), NULL, &audioeffectchain_thread_ffmpeg0, (void*)aec);
+	if (err)
+	{}
+//printf("thread %s -> %d tid %d\n", aec->name, 1, aec->tp.tid);
+	CPU_ZERO(&(aec->tp.cpu[1]));
+	CPU_SET(1, &(aec->tp.cpu[1]));
+	if ((err=pthread_setaffinity_np(aec->tp.tid, sizeof(cpu_set_t), &(aec->tp.cpu[1]))))
+	{
+		//printf("pthread_setaffinity_np error %d\n", err);
+	}
+}
+
 void audioeffectchain_terminate_thread(audioeffectchain *aec)
 {
 	signalstop_mic(&(aec->tp.mic));
+
+	if (aec->tp.tid)
+	{
+		int i;
+		if ((i=pthread_join(aec->tp.tid, NULL)))
+			printf("pthread_join error, %s, %d\n", aec->name, i);
+
+		aec->tp.tid = 0;
+	}
+}
+
+void audioeffectchain_terminate_thread_ffmpeg(audioeffectchain *aec)
+{
+	audiopipe *ap = &(aec->tp.vpw.ap);
+
+	audioCQ_signalstop(ap);
 
 	if (aec->tp.tid)
 	{
@@ -657,6 +741,7 @@ void u_create_view_and_model(audioeffectchain *aec)
 //g_object_unref(model);
 }
 
+/*
 char* strlastpart(char *src, char *search, int lowerupper)
 {
 	char *p;
@@ -682,6 +767,7 @@ char* strlastpart(char *src, char *search, int lowerupper)
 	
 	return q;
 }
+*/
 
 int nosharedlibrary(char *filepath)
 {
@@ -1050,15 +1136,36 @@ void audioeffectchain_delete(audioeffectchain *aec)
 }
 
 // effect chain
+
+devicetype get_devicetype(char *device)
+{
+	if (!strcmp(device, "mediafile"))
+	{
+		return mediafiledevice;
+	}
+	else
+	{
+		return hardwaredevice;
+	}
+}
+
 static void inputdevicescombo_changed(GtkWidget *combo, gpointer data)
 {
 	audioeffectchain *aec = (audioeffectchain *)data;
-
-	audioeffectchain_terminate_thread(aec);
-
 	gchar *device;
+
+	if (get_devicetype(aec->tp.device)==hardwaredevice)
+		audioeffectchain_terminate_thread(aec);
+	else
+		audioeffectchain_terminate_thread_ffmpeg(aec);
+
+	gdk_threads_add_idle(audioeffectchain_led, aec);
+
 	g_object_get((gpointer)aec->inputdevices, "active-id", &device, NULL);
-	audioeffectchain_create_thread(aec, device, aec->frames, aec->channelbuffers, aec->mx);
+	if (get_devicetype(device)==hardwaredevice)
+		audioeffectchain_create_thread(aec, device, aec->frames, aec->channelbuffers, aec->mx);
+	else
+		audioeffectchain_create_thread_ffmpeg(aec, device, aec->frames, aec->channelbuffers, aec->mx);
 	g_free(device);
 }
 
@@ -1120,7 +1227,8 @@ void audioeffectchain_init(audioeffectchain *aec, char *name, int id, audiomixer
 
 // combo box
 	aec->inputdevices = gtk_combo_box_text_new();
-	populate_input_devices_list(aec->inputdevices);
+	populate_input_devices_list(aec->inputdevices); // input hardware devices
+	gtk_combo_box_text_append(GTK_COMBO_BOX_TEXT(aec->inputdevices), "mediafile", "FFMPEG Media File"); // input file
 	g_signal_connect(GTK_COMBO_BOX(aec->inputdevices), "changed", G_CALLBACK(inputdevicescombo_changed), aec);
 	gtk_container_add(GTK_CONTAINER(aec->inputhbox), aec->inputdevices);
 
@@ -1274,7 +1382,11 @@ void audioeffectchain_unloadeffect(audioeffectchain *aec, int effect)
 
 void audioeffectchain_close(audioeffectchain *aec)
 {
-	audioeffectchain_terminate_thread(aec);
+	if (get_devicetype(aec->tp.device)==hardwaredevice)
+		audioeffectchain_terminate_thread(aec);
+	else
+		audioeffectchain_terminate_thread_ffmpeg(aec);
+
 	pthread_mutex_lock(&(aec->rackmutex));
 	aec->id = 0;
 	pthread_mutex_unlock(&(aec->rackmutex));

@@ -151,7 +151,12 @@ static void outputdevicescombo_changed(GtkWidget *combo, gpointer data)
 	{
 		aec = &(aj->aec[i]);
 		if (aec->id)
-			audioeffectchain_terminate_thread(aec);
+		{
+			if (get_devicetype(aec->tp.device)==hardwaredevice)
+				audioeffectchain_terminate_thread(aec);
+			else
+				audioeffectchain_terminate_thread_ffmpeg(aec);
+		}
 	}
 
 	audioout_terminate_thread(ao);
