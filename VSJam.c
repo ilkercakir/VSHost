@@ -106,9 +106,9 @@ void audioout_create_thread(audioout *ao, char *device, unsigned int frames)
 	if (err)
 	{}
 //printf("thread %s\n", ao->name);
-	CPU_ZERO(&(ao->tp.cpu[1]));
-	CPU_SET(1, &(ao->tp.cpu[1]));
-	if ((err=pthread_setaffinity_np(ao->tp.tid, sizeof(cpu_set_t), &(ao->tp.cpu[1]))))
+	CPU_ZERO(&(ao->tp.cpu));
+	CPU_SET(3, &(ao->tp.cpu));
+	if ((err=pthread_setaffinity_np(ao->tp.tid, sizeof(cpu_set_t), &(ao->tp.cpu))))
 	{
 		//printf("pthread_setaffinity_np error %d\n", err);
 	}

@@ -690,7 +690,7 @@ gpointer thread0_videoplayer(void* args)
 	if (err)
 	{}
 //printf("read_frames->%d\n", 3);
-	if ((err = pthread_setaffinity_np(vp->tid[1], sizeof(cpu_set_t), &(vp->cpu[3]))))
+	if ((err = pthread_setaffinity_np(vp->tid[1], sizeof(cpu_set_t), &(vp->cpu[1]))))
 	{
 		//printf("pthread_setaffinity_np error %d\n", err);
 	}

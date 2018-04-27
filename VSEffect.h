@@ -101,7 +101,7 @@ typedef struct
 	vpwidgets vpw;
 	playlistparams plparams;
 
-	cpu_set_t cpu[4];
+	cpu_set_t cpu;
 	pthread_t tid;
 	int retval;
 }threadparameters;

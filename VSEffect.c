@@ -458,9 +458,9 @@ void audioeffectchain_create_thread(audioeffectchain *aec, char *device, unsigne
 	if (err)
 	{}
 //printf("thread %s -> %d tid %d\n", aec->name, 1, aec->tp.tid);
-	CPU_ZERO(&(aec->tp.cpu[1]));
-	CPU_SET(1, &(aec->tp.cpu[1]));
-	if ((err=pthread_setaffinity_np(aec->tp.tid, sizeof(cpu_set_t), &(aec->tp.cpu[1]))))
+	CPU_ZERO(&(aec->tp.cpu));
+	CPU_SET(3, &(aec->tp.cpu));
+	if ((err=pthread_setaffinity_np(aec->tp.tid, sizeof(cpu_set_t), &(aec->tp.cpu))))
 	{
 		//printf("pthread_setaffinity_np error %d\n", err);
 	}
@@ -517,9 +517,10 @@ void audioeffectchain_create_thread_ffmpeg(audioeffectchain *aec, char *device, 
 	if (err)
 	{}
 //printf("thread %s -> %d tid %d\n", aec->name, 1, aec->tp.tid);
-	CPU_ZERO(&(aec->tp.cpu[1]));
-	CPU_SET(1, &(aec->tp.cpu[1]));
-	if ((err=pthread_setaffinity_np(aec->tp.tid, sizeof(cpu_set_t), &(aec->tp.cpu[1]))))
+	CPU_ZERO(&(aec->tp.cpu));
+	CPU_SET(1, &(aec->tp.cpu));
+	CPU_SET(2, &(aec->tp.cpu));
+	if ((err=pthread_setaffinity_np(aec->tp.tid, sizeof(cpu_set_t), &(aec->tp.cpu))))
 	{
 		//printf("pthread_setaffinity_np error %d\n", err);
 	}
@@ -1382,12 +1383,15 @@ void audioeffectchain_unloadeffect(audioeffectchain *aec, int effect)
 
 void audioeffectchain_close(audioeffectchain *aec)
 {
-	if (get_devicetype(aec->tp.device)==hardwaredevice)
-		audioeffectchain_terminate_thread(aec);
-	else
-		audioeffectchain_terminate_thread_ffmpeg(aec);
+	if (aec->id)
+	{
+		if (get_devicetype(aec->tp.device)==hardwaredevice)
+			audioeffectchain_terminate_thread(aec);
+		else
+			audioeffectchain_terminate_thread_ffmpeg(aec);
 
-	pthread_mutex_lock(&(aec->rackmutex));
-	aec->id = 0;
-	pthread_mutex_unlock(&(aec->rackmutex));
+		pthread_mutex_lock(&(aec->rackmutex));
+		aec->id = 0;
+		pthread_mutex_unlock(&(aec->rackmutex));
+	}
 }

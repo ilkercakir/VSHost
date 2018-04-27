@@ -52,7 +52,7 @@ typedef struct
 
 	speaker spk;
 
-	cpu_set_t cpu[4];
+	cpu_set_t cpu;
 	pthread_t tid;
 	int retval;
 }mxthreadparameters;
