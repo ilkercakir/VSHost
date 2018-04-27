@@ -15,12 +15,12 @@ typedef struct
 	unsigned int channels; // channels
 	float modfreq; // modulation frequency
 	float moddepth; // modulation depth in percent 0..1.0
-	int enabled;
+
 	soundvfo v;
 }soundmod;
 
-void soundmod_reinit(float modfreq, float moddepth, int enabled, soundmod *m);
-void soundmod_init(float modfreq, float moddepth, int enabled, snd_pcm_format_t format, unsigned int rate, unsigned int channels, soundmod *m);
+void soundmod_reinit(float modfreq, float moddepth, soundmod *m);
+void soundmod_init(float modfreq, float moddepth, snd_pcm_format_t format, unsigned int rate, unsigned int channels, soundmod *m);
 void soundmod_add(char* inbuffer, int inbuffersize, soundmod *m);
 void soundmod_close(soundmod *m);
 

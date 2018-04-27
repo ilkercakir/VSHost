@@ -34,7 +34,7 @@ void aef_init(audioeffect *ae)
 
 	soundhaas *h = ae->data = malloc(sizeof(soundhaas));
 
-	soundhaas_init(ae->parameter[0].value, ae->parameter[1].value, ae->format, ae->rate, ae->channels, h);
+	soundhaas_init(ae->parameter[1].value, ae->format, ae->rate, ae->channels, h);
 //printf("%f, %f, %f, %f\n", aef_getparameter(ae, 0), aef_getparameter(ae, 1), aef_getparameter(ae, 2), aef_getparameter(ae, 3));
 
 /* User defined parameter initialization code end */
@@ -51,7 +51,6 @@ void aef_setparameter(audioeffect *ae, int i, float value)
 	switch(i)
 	{
 		case 0: // Enable
-			h->enabled = ae->parameter[i].value;
 			break;
 		case 1: // Delay
 			h->millisec = ae->parameter[i].value;
@@ -76,7 +75,8 @@ void aef_process(audioeffect *ae, uint8_t* inbuffer, int inbuffersize)
  
 	soundhaas *h = (soundhaas *)ae->data;
 
-	soundhaas_add((char*)inbuffer, inbuffersize, h);
+	if (ae->parameter[0].value)
+		soundhaas_add((char*)inbuffer, inbuffersize, h);
 
 /* User defined processing code end */
 }
@@ -87,7 +87,7 @@ void aef_reinit(audioeffect *ae)
 
 	soundhaas *h = (soundhaas *)ae->data;
 
-	soundhaas_reinit(ae->parameter[0].value, ae->parameter[1].value, h);
+	soundhaas_reinit(ae->parameter[1].value, h);
 //printf("%f, %f, %f, %f\n", aef_getparameter(ae, 0), aef_getparameter(ae, 1), aef_getparameter(ae, 2), aef_getparameter(ae, 3));
 
 /* User defined reinitialization code end */
@@ -108,52 +108,4 @@ void aef_close(audioeffect *ae)
 /* User defined cleanup code end */
 }
 
-// Haas Effect Processor, Delay Processor in DelayS.c
-
-void soundhaas_reinit(int enabled, float millisec, soundhaas *h)
-{
-	h->millisec = millisec;
-	h->initialized = 0;
-	h->enabled = enabled;
-	sounddelay_reinit(1, DLY_LATE, h->millisec, 1.0, &(h->haasdly));
-}
-
-void soundhaas_init(int enabled, float millisec, snd_pcm_format_t format, unsigned int rate, unsigned int channels, soundhaas *h)
-{
-	h->format = format;
-	h->rate = rate;
-	h->channels = channels;
-
-	h->millisec = millisec;
-	h->initialized = 0;
-	h->enabled = enabled;
-	sounddelay_init(1, DLY_LATE, h->millisec, 1.0, h->format, h->rate, h->channels, &(h->haasdly));
-}
-
-void soundhaas_add(char* inbuffer, int inbuffersize, soundhaas *h)
-{
-	if (h->enabled)
-	{
-		if (!h->initialized)
-		{
-			h->physicalwidth = snd_pcm_format_width(h->format); // bits per sample
-			h->insamples = inbuffersize / h->physicalwidth * 8;
-			h->initialized = 1;
-		}
-		sounddelay_add(inbuffer, inbuffersize, &(h->haasdly));
-		signed short *inshort = (signed short *)inbuffer;
-		signed short *fbuffer = h->haasdly.fshort;
-		int i;
-		for(i=0;i<h->insamples;)
-		{
-			inshort[i++] *= 0.7; h->haasdly.readfront++; // rescale left channel
-			inshort[i++] = fbuffer[h->haasdly.readfront++]; // Haas effect on right channel
-			h->haasdly.readfront%=h->haasdly.fbuffersamples;
-		}
-	}
-}
-
-void soundhaas_close(soundhaas *h)
-{
-	sounddelay_close(&(h->haasdly));
-}
+// Haas Effect Processor in HaasS.c, Delay Effect Processor in DelayS.c

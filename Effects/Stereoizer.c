@@ -27,19 +27,22 @@ void aef_init(audioeffect *ae)
 {
 /* User defined parameter initialization code begin */
 
-	soundmod *m = ae->data = malloc(sizeof(soundmod));
+	soundstereo *s = ae->data = malloc(sizeof(soundstereo));
 
 	strcpy(ae->name, "Stereo");
 	audioeffect_allocateparameters(ae, 7);
 	audioeffect_initparameter(ae,  0, "Enable", 0.0, 1.0, 0.0, 1.0, 1, pt_switch);
 	audioeffect_initparameter(ae,  1, "Delay", 1.0, 30.0, 15.0, 1.0, 1, pt_scale);
 	audioeffect_initparameter(ae,  2, "Modulation", 0.0, 1.0, 0.0, 1.0, 1, pt_switch);
-	audioeffect_initparameter(ae,  3, "L Rate Hz", 0.1, 4.0, 0.3, 0.1, 1, pt_scale);
-	audioeffect_initparameter(ae,  4, "L Depth %", 0.1, 10.0, 0.4, 0.1, 1, pt_scale);
-	audioeffect_initparameter(ae,  5, "R Rate Hz", 0.1, 4.0, 0.3, 0.1, 1, pt_scale);
-	audioeffect_initparameter(ae,  6, "R Depth %", 0.1, 10.0, 0.4, 0.1, 1, pt_scale);
+	audioeffect_initparameter(ae,  3, "L Rate Hz", 0.1, 4.0, 0.8, 0.1, 1, pt_scale);
+	audioeffect_initparameter(ae,  4, "L Depth %", 0.1, 10.0, 4.0, 0.1, 1, pt_scale);
+	audioeffect_initparameter(ae,  5, "R Rate Hz", 0.1, 4.0, 1.2, 0.1, 1, pt_scale);
+	audioeffect_initparameter(ae,  6, "R Depth %", 0.1, 10.0, 3.0, 0.1, 1, pt_scale);
 
-	soundmod_init(ae->parameter[1].value, ae->parameter[2].value, (int)ae->parameter[0].value, ae->format, ae->rate, ae->channels, m);
+	soundstereo_init(ae->format, ae->rate, ae->channels, s);
+	soundvfo_init(ae->parameter[3].value, ae->parameter[4].value/100.0, ae->format, ae->rate, 1, &(s->v[0])); // L
+	soundvfo_init(ae->parameter[5].value, ae->parameter[6].value/100.0, ae->format, ae->rate, 1, &(s->v[1])); // R
+	soundhaas_init(ae->parameter[1].value, ae->format, ae->rate, ae->channels, &(s->h));
 //printf("%f, %f, %f, %f\n", aef_getparameter(ae, 0), aef_getparameter(ae, 1), aef_getparameter(ae, 2), aef_getparameter(ae, 3));
 
 /* User defined parameter initialization code end */
@@ -51,18 +54,24 @@ void aef_setparameter(audioeffect *ae, int i, float value)
 
 /* User defined parameter setter code begin */
 
-	soundmod *m = (soundmod *)ae->data;
+	soundstereo *s = (soundstereo *)ae->data;
 
 	switch(i)
 	{
 		case 0: // Enable
-			m->enabled = (int)ae->parameter[i].value;
 			break;
 		case 1:
-			m->modfreq = ae->parameter[i].value;
+			s->h.millisec = ae->parameter[i].value;
 			break;
-		case 2:
-			m->moddepth = ae->parameter[i].value;
+		case 2: // Enable
+			break;
+		case 3:
+			break;
+		case 4:
+			break;
+		case 5:
+			break;
+		case 6:
 			break;
 	}
 //printf("aef_setparameter %d = %2.2f\n", i, ae->parameter[i].value);
@@ -82,9 +91,12 @@ void aef_process(audioeffect *ae, uint8_t* inbuffer, int inbuffersize)
 {
 /* User defined processing code begin */
  
-	soundmod *m = (soundmod *)ae->data;
+	soundstereo *s = (soundstereo *)ae->data;
 
-	soundmod_add((char*)inbuffer, inbuffersize, m);
+	if (ae->parameter[0].value)
+		soundstereo_addhaas((char*)inbuffer, inbuffersize, s);
+	if (ae->parameter[2].value)
+		soundstereo_addmodulation((char*)inbuffer, inbuffersize, s);
 
 /* User defined processing code end */
 }
@@ -93,9 +105,16 @@ void aef_reinit(audioeffect *ae)
 {
 /* User defined reinitialization code begin */
 
-	soundmod *m = (soundmod *)ae->data;
+	soundstereo *s = (soundstereo *)ae->data;
 
-	soundmod_reinit(ae->parameter[1].value, ae->parameter[2].value, (int)ae->parameter[0].value, m);
+	soundvfo_close(&(s->v[0]));
+	soundvfo_close(&(s->v[1]));
+	soundstereo_close(s);
+	soundstereo_init(ae->format, ae->rate, ae->channels, s);
+	soundvfo_init(ae->parameter[3].value, ae->parameter[4].value/100.0, ae->format, ae->rate, 1, &(s->v[0])); // L
+	soundvfo_init(ae->parameter[5].value, ae->parameter[6].value/100.0, ae->format, ae->rate, 1, &(s->v[1])); // R
+
+	soundhaas_reinit(ae->parameter[1].value, &(s->h));
 //printf("%f, %f, %f, %f\n", aef_getparameter(ae, 0), aef_getparameter(ae, 1), aef_getparameter(ae, 2), aef_getparameter(ae, 3));
 
 /* User defined reinitialization code end */
@@ -107,63 +126,108 @@ void aef_close(audioeffect *ae)
 
 /* User defined cleanup code begin  */
 
-	soundmod *m = (soundmod *)ae->data;
+	soundstereo *s = (soundstereo *)ae->data;
 
-	soundmod_close(m);
+	soundhaas_close(&(s->h));
+	soundvfo_close(&(s->v[0]));
+	soundvfo_close(&(s->v[1]));
+	soundstereo_close(s);
 
 	free(ae->data);
 
 /* User defined cleanup code end */
 }
 
-// Variable Frequency Oscillator Processor in VFO.c
+// Haas Effect Processor in HaasS.c, Variable Frequency Oscillator Processor in VFO.c
 
-// Modulator
+// Stereoizer
 
-void soundmod_reinit(float modfreq, float moddepth, int enabled, soundmod *m)
+void soundstereo_init(snd_pcm_format_t format, unsigned int rate, unsigned int channels, soundstereo *s)
 {
-	soundvfo_close(&(m->v));
-	m->modfreq = modfreq;
-	m->moddepth = moddepth;
-	m->enabled = enabled;
-	m->v.enabled = 1;
+	s->format = format;
+	s->rate = rate;
+	s->channels = channels;
+	s->buffer = NULL;
 
-	soundvfo_init(m->modfreq, m->moddepth/100.0, m->format, m->rate, m->channels, &(m->v));
+	s->v = malloc(s->channels * sizeof(soundvfo));
 }
 
-void soundmod_init(float modfreq, float moddepth, int enabled, snd_pcm_format_t format, unsigned int rate, unsigned int channels, soundmod *m)
+void soundstereo_split(char* inbuffer, int inbuffersize, soundstereo *s)
 {
-	m->format = format;
-	m->rate = rate;
-	m->channels = channels;
-	m->modfreq = modfreq;
-	m->moddepth = moddepth;
-	m->enabled = enabled;
-	m->v.enabled = 1;
+	int i,j;
+	signed short *inshort = (signed short *)inbuffer;
+	signed short *bufshort;
 
-	soundvfo_init(m->modfreq, m->moddepth/100.0, m->format, m->rate, m->channels, &(m->v));
-}
-
-void soundmod_add(char* inbuffer, int inbuffersize, soundmod *m)
-{
-	int i, j;
-	signed short *inshort, *vfshort;
-
-	if (m->enabled)
+	if (!s->buffer)
 	{
-		soundvfo_add(inbuffer, inbuffersize, &(m->v));
-		inshort = (signed short *)inbuffer;
-		vfshort = (signed short *)m->v.vfobuf;
-		for(i=0;i<m->v.inbufferframes;i++)
+		s->physicalwidth = snd_pcm_format_width(s->format) / 8;
+		s->insamples = inbuffersize / s->physicalwidth;
+		s->inframes = s->insamples / s->channels;
+		s->buffer = malloc(s->channels * sizeof(char*));
+		for(i=0;i<s->channels;i++)
+			s->buffer[i] = malloc(s->inframes*s->physicalwidth);
+	}
+
+	for(j=0;j<s->inframes;j++)
+	{
+		for(i=0;i<s->channels;i++)
 		{
-			for(j=0;j<m->channels;j++)
-				inshort[i*m->channels+j] = vfshort[m->v.front++];
-			m->v.front %= m->v.vfobufsamples;
+			bufshort = (signed short *)s->buffer[i];
+			bufshort[j] = inshort[s->channels*j+i];
 		}
 	}
 }
 
-void soundmod_close(soundmod *m)
+void soundstereo_merge(char* outbuffer, soundstereo *s)
 {
-	soundvfo_close(&(m->v));
+	int i,j;
+	signed short *outshort = (signed short *)outbuffer;
+	signed short *bufshort;
+
+	for(j=0;j<s->inframes;j++)
+	{
+		for(i=0;i<s->channels;i++)
+		{
+			bufshort = (signed short *)s->buffer[i];
+			outshort[s->channels*j+i] = bufshort[j];
+		}
+	}
+}
+
+void soundstereo_addhaas(char* inbuffer, int inbuffersize, soundstereo *s)
+{
+	soundhaas_add((char*)inbuffer, inbuffersize, &(s->h));
+}
+
+void soundstereo_addmodulation(char* inbuffer, int inbuffersize, soundstereo *s)
+{
+	soundstereo_split(inbuffer, inbuffersize, s);
+
+	soundvfo_add(s->buffer[0], s->inframes*s->physicalwidth, &(s->v[0]));
+	soundvfo_add(s->buffer[1], s->inframes*s->physicalwidth, &(s->v[1]));
+
+	int i, j;
+	signed short *inshort = (signed short *)inbuffer;
+	for(j=0;j<s->inframes;j++)
+	{
+		for(i=0;i<s->channels;i++)
+		{
+			signed short *vfoshort = (signed short *)s->v[i].vfobuf;
+			inshort[j*s->channels+i] = vfoshort[s->v[i].front++];
+			s->v[i].front %= s->v[i].vfobufsamples;
+		}
+	}
+}
+
+void soundstereo_close(soundstereo *s)
+{
+	int i;
+	if (s->buffer)
+	{
+		for(i=0;i<s->channels;i++)
+			free(s->buffer[i]);
+		free(s->buffer);
+		s->buffer = NULL;
+	}
+	free(s->v);
 }

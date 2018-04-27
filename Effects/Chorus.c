@@ -137,7 +137,6 @@ void soundcho_init(int maxcho, snd_pcm_format_t format, unsigned int rate, unsig
 	for(i=0;i<c->maxcho;i++)
 	{
 		sounddelay_init(c->maxcho+1, DLY_LATE, c->chodelay[i], 1.0, c->format, c->rate, c->channels, &(c->d[i]));
-		c->v[i].enabled = 1;
 		soundvfo_init(c->chofreq[i], c->chodepth[i], c->format, c->rate, c->channels, &(c->v[i]));
 		c->dlbuffer[i] = NULL;
 	}

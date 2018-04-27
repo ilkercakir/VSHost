@@ -35,7 +35,7 @@ void aef_init(audioeffect *ae)
 	audioeffect_initparameter(ae,  1, "Rate Hz", 0.1, 4.0, 0.3, 0.1, 1, pt_scale);
 	audioeffect_initparameter(ae,  2, "Depth %", 0.1, 10.0, 0.4, 0.1, 1, pt_scale);
 
-	soundmod_init(ae->parameter[1].value, ae->parameter[2].value, (int)ae->parameter[0].value, ae->format, ae->rate, ae->channels, m);
+	soundmod_init(ae->parameter[1].value, ae->parameter[2].value, ae->format, ae->rate, ae->channels, m);
 //printf("%f, %f, %f, %f\n", aef_getparameter(ae, 0), aef_getparameter(ae, 1), aef_getparameter(ae, 2), aef_getparameter(ae, 3));
 
 /* User defined parameter initialization code end */
@@ -52,7 +52,6 @@ void aef_setparameter(audioeffect *ae, int i, float value)
 	switch(i)
 	{
 		case 0: // Enable
-			m->enabled = (int)ae->parameter[i].value;
 			break;
 		case 1:
 			m->modfreq = ae->parameter[i].value;
@@ -80,7 +79,8 @@ void aef_process(audioeffect *ae, uint8_t* inbuffer, int inbuffersize)
  
 	soundmod *m = (soundmod *)ae->data;
 
-	soundmod_add((char*)inbuffer, inbuffersize, m);
+	if (ae->parameter[0].value)
+		soundmod_add((char*)inbuffer, inbuffersize, m);
 
 /* User defined processing code end */
 }
@@ -91,7 +91,7 @@ void aef_reinit(audioeffect *ae)
 
 	soundmod *m = (soundmod *)ae->data;
 
-	soundmod_reinit(ae->parameter[1].value, ae->parameter[2].value, (int)ae->parameter[0].value, m);
+	soundmod_reinit(ae->parameter[1].value, ae->parameter[2].value, m);
 //printf("%f, %f, %f, %f\n", aef_getparameter(ae, 0), aef_getparameter(ae, 1), aef_getparameter(ae, 2), aef_getparameter(ae, 3));
 
 /* User defined reinitialization code end */
@@ -116,26 +116,22 @@ void aef_close(audioeffect *ae)
 
 // Modulator
 
-void soundmod_reinit(float modfreq, float moddepth, int enabled, soundmod *m)
+void soundmod_reinit(float modfreq, float moddepth, soundmod *m)
 {
 	soundvfo_close(&(m->v));
 	m->modfreq = modfreq;
 	m->moddepth = moddepth;
-	m->enabled = enabled;
-	m->v.enabled = 1;
 
 	soundvfo_init(m->modfreq, m->moddepth/100.0, m->format, m->rate, m->channels, &(m->v));
 }
 
-void soundmod_init(float modfreq, float moddepth, int enabled, snd_pcm_format_t format, unsigned int rate, unsigned int channels, soundmod *m)
+void soundmod_init(float modfreq, float moddepth, snd_pcm_format_t format, unsigned int rate, unsigned int channels, soundmod *m)
 {
 	m->format = format;
 	m->rate = rate;
 	m->channels = channels;
 	m->modfreq = modfreq;
 	m->moddepth = moddepth;
-	m->enabled = enabled;
-	m->v.enabled = 1;
 
 	soundvfo_init(m->modfreq, m->moddepth/100.0, m->format, m->rate, m->channels, &(m->v));
 }
@@ -145,17 +141,14 @@ void soundmod_add(char* inbuffer, int inbuffersize, soundmod *m)
 	int i, j;
 	signed short *inshort, *vfshort;
 
-	if (m->enabled)
+	soundvfo_add(inbuffer, inbuffersize, &(m->v));
+	inshort = (signed short *)inbuffer;
+	vfshort = (signed short *)m->v.vfobuf;
+	for(i=0;i<m->v.inbufferframes;i++)
 	{
-		soundvfo_add(inbuffer, inbuffersize, &(m->v));
-		inshort = (signed short *)inbuffer;
-		vfshort = (signed short *)m->v.vfobuf;
-		for(i=0;i<m->v.inbufferframes;i++)
-		{
-			for(j=0;j<m->channels;j++)
-				inshort[i*m->channels+j] = vfshort[m->v.front++];
-			m->v.front %= m->v.vfobufsamples;
-		}
+		for(j=0;j<m->channels;j++)
+			inshort[i*m->channels+j] = vfshort[m->v.front++];
+		m->v.front %= m->v.vfobufsamples;
 	}
 }
 

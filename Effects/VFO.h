@@ -13,7 +13,6 @@ typedef struct
 	unsigned int channels; // channels
 	float vfofreq; // modulation frequency
 	float vfodepth; // modulation depth in percent 0..1.0
-	int enabled;
 
 	int N; // extra frames
 	char *vfobuf;
