@@ -57,12 +57,12 @@ void audioCQ_add(audiopipe *p, char *inbuffer, int inbuffersize)
 	pthread_mutex_lock(&(p->pipemutex));
 	while ((bytesleft = p->cqbuffersize - ((p->rear + p->cqbuffersize - p->front) % p->cqbuffersize) - 1) < inbuffersize)
 	{
-		pthread_cond_wait(&(p->pipehighcond), &(p->pipemutex));
 		if (p->status == CQ_STOPPED)
 		{
 			pthread_mutex_unlock(&(p->pipemutex));
 			return;
 		}
+		pthread_cond_wait(&(p->pipehighcond), &(p->pipemutex));
 	}
 	for(offset=0,bytesleft=inbuffersize;bytesleft;bytesleft-=bytestocopy)
 	{
@@ -71,7 +71,8 @@ void audioCQ_add(audiopipe *p, char *inbuffer, int inbuffersize)
 		offset += bytestocopy;
 		p->rear += bytestocopy; p->rear %= p->cqbuffersize;
 	}
-	//printf("cq_add %d\n", inbuffersize);
+	p->inbufferframes = inbuffersize / ( p->channels * snd_pcm_format_width(p->format) / 8 );
+//printf("cq_add %d\n", inbuffersize);
 	pthread_mutex_unlock(&(p->pipemutex));
 }
 
