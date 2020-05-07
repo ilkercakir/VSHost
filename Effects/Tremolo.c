@@ -28,14 +28,15 @@ void aef_init(audioeffect *ae)
 /* User defined parameter initialization code begin */
 
 	strcpy(ae->name, "Tremolo");
-	audioeffect_allocateparameters(ae, 3);
+	audioeffect_allocateparameters(ae, 4);
 	audioeffect_initparameter(ae, 0, "Enable", 0.0, 1.0, 0.0, 1.0, 1, pt_switch);
 	audioeffect_initparameter(ae, 1, "Rate Hz", 1.0, 8.0, 3.0, 0.1, 1, pt_scale);
 	audioeffect_initparameter(ae, 2, "Depth", 0.1, 1.0, 0.2, 0.1, 1, pt_scale);
+	audioeffect_initparameter(ae, 3, "Invert", 0.0, 1.0, 0.0, 1.0, 1, pt_switch);
 
 	soundtremolo *t = ae->data = malloc(sizeof(soundtremolo));
 
-	soundtremolo_init((int)ae->parameter[0].value, ae->parameter[1].value, ae->parameter[2].value, ae->format, ae->rate, ae->channels, t);
+	soundtremolo_init((int)ae->parameter[0].value, ae->parameter[1].value, ae->parameter[2].value, ae->parameter[3].value, ae->format, ae->rate, ae->channels, t);
 //printf("%f, %f, %f, %f\n", aef_getparameter(ae, 0), aef_getparameter(ae, 1), aef_getparameter(ae, 2), aef_getparameter(ae, 3));
 
 /* User defined parameter initialization code end */
@@ -64,9 +65,6 @@ void aef_setparameter(audioeffect *ae, int i, float value)
 //printf("aef_setparameter %d = %2.2f\n", i, ae->parameter[i].value);
 
 /* User defined parameter setter code end */
-
-	if (ae->parameter[i].resetrequired)
-		aef_reinit(ae);
 }
 
 float aef_getparameter(audioeffect *ae, int i)
@@ -92,7 +90,7 @@ void aef_reinit(audioeffect *ae)
 
 	soundtremolo *t = (soundtremolo *)ae->data;
 
-	soundtremolo_reinit((int)ae->parameter[0].value, ae->parameter[1].value, ae->parameter[2].value, t);
+	soundtremolo_reinit((int)ae->parameter[0].value, ae->parameter[1].value, ae->parameter[2].value, ae->parameter[3].value, t);
 //printf("%f, %f, %f, %f\n", aef_getparameter(ae, 0), aef_getparameter(ae, 1), aef_getparameter(ae, 2), aef_getparameter(ae, 3));
 
 /* User defined reinitialization code end */
@@ -115,18 +113,19 @@ void aef_close(audioeffect *ae)
 
 // Tremolo Effect Processor
 
-void soundtremolo_reinit(int enabled, float tremolorate, float depth, soundtremolo *t)
+void soundtremolo_reinit(int enabled, float tremolorate, float depth, int invert, soundtremolo *t)
 {
-	soundtremolo_init(enabled, tremolorate, depth, t->format, t->rate, t->channels, t);
+	soundtremolo_init(enabled, tremolorate, depth, invert, t->format, t->rate, t->channels, t);
 }
 
-void soundtremolo_init(int enabled, float tremolorate, float depth, snd_pcm_format_t format, unsigned int rate, unsigned int channels, soundtremolo *t)
+void soundtremolo_init(int enabled, float tremolorate, float depth, int invert, snd_pcm_format_t format, unsigned int rate, unsigned int channels, soundtremolo *t)
 {
 	t->format = format;
 	t->rate = rate;
 	t->channels = channels;
 	t->depth = depth;
 	t->tremolorate = tremolorate;
+	t->invert = invert;
 	t->enabled = enabled;
 	t->initialized = 0;
 	t->framecount = 0;
@@ -145,13 +144,19 @@ void soundtremolo_add(char* inbuffer, int inbuffersize, soundtremolo *t)
 			t->framesinT = (int)((float)t->rate / (float)t->tremolorate);
 		}
 		signed short *inshort = (signed short *)inbuffer;
-		int i,j,k;
+		int i,j;
 		for(i=0,j=0;i<=t->frames;i++,t->framecount++)
 		{
 			float time = ((float)t->framecount / (float)t->rate);
 			float theta = 2.0*M_PI*t->tremolorate*time; // w*t = 2*pi*f*t
+			int k;
 			for(k=0;k<t->channels;k++)
-				inshort[j++] *= 1.0-((t->depth/2.0)*(1.0-sin(theta)));
+			{
+				//inshort[j++] *= 1.0-((t->depth/2.0)*(1.0-sin(theta)));
+				float inverter = (t->invert?-2.0*(k%2)+1.0:1.0); // y=-2x+1
+				inshort[j++] *= 1.0-((t->depth/2.0)*(1.0-sin(inverter*theta)));
+			}
+			
 		}
 		t->framecount %= t->framesinT;
 	}

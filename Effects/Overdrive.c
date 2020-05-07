@@ -71,9 +71,6 @@ void aef_setparameter(audioeffect *ae, int i, float value)
 //printf("aef_setparameter %d = %2.2f\n", i, ae->parameter[i].value);
 
 /* User defined parameter setter code end */
-
-	if (ae->parameter[i].resetrequired)
-		aef_reinit(ae);
 }
 
 float aef_getparameter(audioeffect *ae, int i)
@@ -125,9 +122,9 @@ void aef_close(audioeffect *ae)
 void set_overdriveeq(eqdefaults *d)
 {
 	float default_eqfreqs[1] = {6000.0};
-	char* default_eqlabels[1] = {"LPF"};
-	filtertype default_filtertypes[] = {LPF};
-	float default_dbGains[1] = {12.0};
+	char* default_eqlabels[1] = {"HSH"};
+	filtertype default_filtertypes[] = {HSH};
+	float default_dbGains[1] = {-12.0};
 
 	int i;
 	for(i=0;i<1;i++)

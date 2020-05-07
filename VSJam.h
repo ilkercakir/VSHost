@@ -13,6 +13,8 @@
 #include "AudioSpk.h"
 #include "AudioMixer.h"
 
+#include "AudioEncoder.h"
+
 typedef struct
 {
 	int id;
@@ -25,16 +27,19 @@ typedef struct
 	char dbpath[256];
 	int maxchains;
 	int maxeffects;
+	GtkWidget *window;
 	GtkWidget *container;
 	GtkWidget *frame;
 	GtkWidget *hbox;
 
+	GtkWidget *toolbarframe;
+	GtkWidget *toolbarframehbox;
 	GtkWidget *toolbarhbox;
 	GtkWidget *toolbar;
 	GtkWidget *icon_widget;
+	GtkToolItem *savechainsbutton;
 	GtkToolItem *addchainbutton;
 	GtkWidget *chainnameentry;
-	GtkToolItem *savechainsbutton;
 
 	audioeffectchain *aec;
 	audiomixer *mx;
@@ -65,6 +70,7 @@ struct auout
 	unsigned int channels; // channels
 	unsigned int frames;
 
+	GtkWidget *window;
 	GtkWidget *container;
 	GtkWidget *outputframe;
 	GtkWidget *outputhbox;
@@ -72,6 +78,9 @@ struct auout
 	GtkWidget *led;
 	GtkWidget *frameslabel;
 	GtkWidget *spinbutton;
+	GtkWidget *recordlabel;
+	GtkWidget *recordformats;
+	GtkWidget *recordswitch;
 
 	int mixerChannels;
 	audiomixer mx;
@@ -81,12 +90,15 @@ struct auout
 	pthread_mutex_t mxmutex;
 	pthread_cond_t mxinitcond;
 	int mxready;
+
+	char *recordedfilename;
+	audioencoder aen;
 };
 
-void audioout_init(audioout *ao, snd_pcm_format_t format, unsigned int rate, unsigned int channels, unsigned int frames, int mixerChannels, audiojam *aj, GtkWidget *container);
+void audioout_init(audioout *ao, snd_pcm_format_t format, unsigned int rate, unsigned int channels, unsigned int frames, int mixerChannels, audiojam *aj, GtkWidget *container, GtkWidget *window);
 void audioout_close(audioout *ao);
 
-void audiojam_init(audiojam *aj, int maxchains, int maxeffects, snd_pcm_format_t format, unsigned int rate, unsigned int channels, unsigned int frames, GtkWidget *container, char *dbpath, audiomixer *mx);
+void audiojam_init(audiojam *aj, int maxchains, int maxeffects, snd_pcm_format_t format, unsigned int rate, unsigned int channels, unsigned int frames, GtkWidget *container, char *dbpath, audiomixer *mx, GtkWidget *window);
 void audiojam_addchain(audiojam *aj, char *name);
 void audiojam_close(audiojam *aj);
 void audiojam_stopthreads(audiojam *aj);

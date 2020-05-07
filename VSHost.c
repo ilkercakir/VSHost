@@ -100,7 +100,7 @@ int main(int argc, char **argv)
 
 	//virtualstudio_purgeeffects(&vs); db path init?
 	//virtualstudio_addeffect(&vs, "/home/pi/Desktop/C/VSHost/Effect1.so");
-	virtualstudio_init(&vs, 3, 3, SND_PCM_FORMAT_S16, 48000, 2, 128, window, "/var/sqlite3DATA/mediaplayer.db");
+	virtualstudio_init(&vs, 3, 5, SND_PCM_FORMAT_S16, 48000, 2, 128, window, "/var/sqlite3DATA/mediaplayer.db");
 	// check db for stored settings in case maxchains, maxeffects change!
 
 	gtk_widget_show_all(window);

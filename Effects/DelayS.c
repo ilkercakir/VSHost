@@ -24,28 +24,12 @@
 #include "DelayS.h"
 
 // Delay Effect Processor
-void sounddelay_reinit(int N, dly_type delaytype, float millisec, float feedback, sounddelay *s)
-{
-	s->N = N;
-	s->delaytype = delaytype;
-	s->feedback = feedback;
-	s->millisec = millisec;
-	free(s->fbuffer);
-	s->fbuffer = NULL;
-}
 
-void sounddelay_init(int N, dly_type delaytype, float millisec, float feedback, snd_pcm_format_t format, unsigned int rate, unsigned int channels, sounddelay *s)
-{
-	s->format = format;
-	s->rate = rate;
-	s->channels = channels;
-	s->N = N;
-	s->delaytype = delaytype;
-	s->feedback = feedback;
-	s->millisec = millisec;
-	s->fbuffer = NULL;
+extern inline signed short sounddelay_readsample(sounddelay *s);
 
-	switch (s->delaytype)
+void sounddelay_prescale(sounddelay *s)
+{
+		switch (s->delaytype)
 	{
 		case DLY_ECHO: 
 			s->prescale = sqrt(1.0 - s->feedback*s->feedback); // prescale=sqrt(sum(r^2n)), n=0..infinite
@@ -60,6 +44,36 @@ void sounddelay_init(int N, dly_type delaytype, float millisec, float feedback, 
 			s->prescale = 1.0;
 			break;
 	}
+}
+
+void sounddelay_reinit(int N, dly_type delaytype, float millisec, float feedback, sounddelay *s)
+{
+	if (s->fbuffer)
+	{
+		free(s->fbuffer);
+		s->fbuffer = NULL;
+	}
+
+	s->N = N;
+	s->delaytype = delaytype;
+	s->feedback = feedback;
+	s->millisec = millisec;
+
+	sounddelay_prescale(s);
+}
+
+void sounddelay_init(int N, dly_type delaytype, float millisec, float feedback, snd_pcm_format_t format, unsigned int rate, unsigned int channels, sounddelay *s)
+{
+	s->format = format;
+	s->rate = rate;
+	s->channels = channels;
+	s->N = N;
+	s->delaytype = delaytype;
+	s->feedback = feedback;
+	s->millisec = millisec;
+	s->fbuffer = NULL;
+
+	sounddelay_prescale(s);
 	//printf("Delay initialized, type %d, %5.2f ms, %5.2f feedback, %d rate, %d channels\n", s->delaytype, s->millisec, s->feedback, s->rate, s->channels);
 }
 
@@ -138,12 +152,4 @@ void sounddelay_close(sounddelay *s)
 		free(s->fbuffer);
 		s->fbuffer = NULL;
 	}
-}
-
-signed short sounddelay_readsample(sounddelay *s)
-{
-	signed short sample = s->fshort[s->readfront++];
-	s->readfront%=s->fbuffersamples;
-
-	return sample;
 }

@@ -167,9 +167,19 @@ void audioeffect_init(audioeffect *ae, int id)
 
 	for(i=0;i<ae->parameters;i++)
 	{
-		ae->parameter[i].vbox = gtk_box_new(GTK_ORIENTATION_VERTICAL, 5);
-		//gtk_container_add(GTK_CONTAINER(ae->hbox), ae->parameter[i].vbox);
-		gtk_box_pack_start(GTK_BOX(ae->hbox), ae->parameter[i].vbox, TRUE, TRUE, 0);
+		switch (ae->parameter[i].ptype)
+		{
+			case pt_switch:
+				ae->parameter[i].vbox = gtk_box_new(GTK_ORIENTATION_VERTICAL, 5);
+				gtk_container_add(GTK_CONTAINER(ae->hbox), ae->parameter[i].vbox);
+				//gtk_box_pack_start(GTK_BOX(ae->hbox), ae->parameter[i].vbox, TRUE, TRUE, 0);
+				break;
+			default:
+				ae->parameter[i].vbox = gtk_box_new(GTK_ORIENTATION_VERTICAL, 5);
+				//gtk_container_add(GTK_CONTAINER(ae->hbox), ae->parameter[i].vbox);
+				gtk_box_pack_start(GTK_BOX(ae->hbox), ae->parameter[i].vbox, TRUE, TRUE, 0);
+				break;			
+		}
 
 		switch (ae->parameter[i].ptype)
 		{
@@ -419,7 +429,7 @@ static gpointer audioeffectchain_thread0(gpointer args)
 	else
 	{
 		gdk_threads_add_idle(audioeffectchain_led, aec);
-		while (tp->mic.status==MC_RUNNING)
+		while ((tp->mic.status==MC_RUNNING) && (tp->status==TH_RUNNING))
 		{
 			if (read_mic(&(tp->mic)))
 			{
@@ -453,11 +463,13 @@ void audioeffectchain_create_thread(audioeffectchain *aec, char *device, unsigne
 	strcpy(aec->tp.device, device);
 	aec->tp.frames = frames;
 	aec->tp.channelbuffers = channelbuffers;
+	aec->tp.status = TH_RUNNING;
 
 	err = pthread_create(&(aec->tp.tid), NULL, &audioeffectchain_thread0, (void*)aec);
 	if (err)
 	{}
 //printf("thread %s -> %d tid %d\n", aec->name, 1, aec->tp.tid);
+
 	CPU_ZERO(&(aec->tp.cpu));
 	CPU_SET(3, &(aec->tp.cpu));
 	if ((err=pthread_setaffinity_np(aec->tp.tid, sizeof(cpu_set_t), &(aec->tp.cpu))))
@@ -484,18 +496,17 @@ static gpointer audioeffectchain_thread_ffmpeg0(gpointer args)
 
 	gdk_threads_add_idle(audioeffectchain_led, aec);
 	audiopipe *ap = &(tp->vpw.ap);
-	while (audioCQ_remove(ap) == CQ_RUNNING)
+	while ((audioCQ_remove(ap)==CQ_RUNNING) && (tp->status==TH_RUNNING))
 	{
 		// Process input frames here
 		audioeffectchain_process(aec, ap->buffer, ap->buffersize);
 //printf("%s %d\n", aec->device, ap->buffersize);
 		writetojack(ap->buffer, ap->buffersize, &(tp->jack));
 	}
-	press_vp_stop_button(plp);
 
 	close_audiojack(&(tp->jack));
 
-	close_videoplayerwidgets(vpw);
+	close_videoplayerwidgets(plp);
 	close_playlistparams(plp);
 
 //printf("exiting %s\n", aec->name);
@@ -512,6 +523,7 @@ void audioeffectchain_create_thread_ffmpeg(audioeffectchain *aec, char *device, 
 	strcpy(aec->tp.device, device);
 	aec->tp.frames = frames;
 	aec->tp.channelbuffers = channelbuffers;
+	aec->tp.status = TH_RUNNING;
 
 	err = pthread_create(&(aec->tp.tid), NULL, &audioeffectchain_thread_ffmpeg0, (void*)aec);
 	if (err)
@@ -528,11 +540,13 @@ void audioeffectchain_create_thread_ffmpeg(audioeffectchain *aec, char *device, 
 
 void audioeffectchain_terminate_thread(audioeffectchain *aec)
 {
+	int i;
+
 	signalstop_mic(&(aec->tp.mic));
 
 	if (aec->tp.tid)
 	{
-		int i;
+		aec->tp.status = TH_STOPPED;
 		if ((i=pthread_join(aec->tp.tid, NULL)))
 			printf("pthread_join error, %s, %d\n", aec->name, i);
 
@@ -542,13 +556,14 @@ void audioeffectchain_terminate_thread(audioeffectchain *aec)
 
 void audioeffectchain_terminate_thread_ffmpeg(audioeffectchain *aec)
 {
+	int i;
 	audiopipe *ap = &(aec->tp.vpw.ap);
 
 	audioCQ_signalstop(ap);
 
 	if (aec->tp.tid)
 	{
-		int i;
+		aec->tp.status = TH_STOPPED;
 		if ((i=pthread_join(aec->tp.tid, NULL)))
 			printf("pthread_join error, %s, %d\n", aec->name, i);
 
@@ -741,34 +756,6 @@ void u_create_view_and_model(audioeffectchain *aec)
    be freed automatically when the tree view is destroyed */
 //g_object_unref(model);
 }
-
-/*
-char* strlastpart(char *src, char *search, int lowerupper)
-{
-	char *p;
-	char *q;
-	int i;
-
-	q = &src[strlen(src)];
-	for(p = src; (p = strstr(p, search)); p += strlen(search))
-	{
-		q = p;
-	}
-	switch (lowerupper)
-	{
-		case 0:
-			break;
-		case 1:
-			for(i=0;q[i];i++) q[i] = tolower(q[i]);
-			break;
-		case 2:
-			for(i=0;q[i];i++) q[i] = toupper(q[i]);
-			break;
-	}
-	
-	return q;
-}
-*/
 
 int nosharedlibrary(char *filepath)
 {
@@ -1263,7 +1250,13 @@ void audioeffectchain_init(audioeffectchain *aec, char *name, int id, audiomixer
 // thread
 	gchar *device;
 	g_object_get((gpointer)aec->inputdevices, "active-id", &device, NULL);
-	audioeffectchain_create_thread(aec, device, aec->frames, aec->channelbuffers, mx);
+//	audioeffectchain_create_thread(aec, device, aec->frames, aec->channelbuffers, mx);
+
+	if (get_devicetype(device)==hardwaredevice)
+		audioeffectchain_create_thread(aec, device, aec->frames, aec->channelbuffers, mx);
+	else
+		audioeffectchain_create_thread_ffmpeg(aec, device, aec->frames, aec->channelbuffers, mx);
+
 	g_free(device);
 }
 

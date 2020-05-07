@@ -58,7 +58,6 @@ void aef_setparameter(audioeffect *ae, int i, float value)
 			d->delaytype = (dly_type)ae->parameter[i].value;
 			break;
 		case 2: // Delay ms
-			d->millisec = ae->parameter[i].value;
 			break;
 		case 3: // Feedback
 			d->feedback = ae->parameter[i].value;
@@ -67,9 +66,6 @@ void aef_setparameter(audioeffect *ae, int i, float value)
 //printf("aef_setparameter %d = %2.2f\n", i, ae->parameter[i].value);
 
 /* User defined parameter setter code end */
-
-	if (ae->parameter[i].resetrequired)
-		aef_reinit(ae);
 }
 
 float aef_getparameter(audioeffect *ae, int i)

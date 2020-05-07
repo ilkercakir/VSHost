@@ -84,10 +84,15 @@ static int nomediafile(char *filepath)
 		strcmp(strlastpart(filepath, ".", 1), ".mp3") &&
 		strcmp(strlastpart(filepath, ".", 1), ".m4a") &&
 		strcmp(strlastpart(filepath, ".", 1), ".wav") &&
+		strcmp(strlastpart(filepath, ".", 1), ".flac") &&
 
+		strcmp(strlastpart(filepath, ".", 1), ".avi") &&
 		strcmp(strlastpart(filepath, ".", 1), ".mp4") &&
 		strcmp(strlastpart(filepath, ".", 1), ".mov") &&
 		strcmp(strlastpart(filepath, ".", 1), ".mkv") &&
+		strcmp(strlastpart(filepath, ".", 1), ".mpg") &&
+		strcmp(strlastpart(filepath, ".", 1), ".vob") &&
+		strcmp(strlastpart(filepath, ".", 1), ".wmv") &&
 		strcmp(strlastpart(filepath, ".", 1), ".webm")
 	);
 }
@@ -1057,13 +1062,16 @@ void drag_data_received_da_event(GtkWidget *widget, GdkDragContext *context, gin
 		int j = strlen(path);
 		if (path[j-1]=='\r') path[j-1] = '\0';
 //printf("%s\n", path);
-		if (nomediafile((char*)path))
+		char *path2 = malloc(strlen(path)+1);
+		strcpy(path2, path);
+		if (nomediafile(path2))
 		{}
 		else
 		{
 			gtk_list_store_append(vpw->store, &(vpw->iter));
 			gtk_list_store_set(vpw->store, &(vpw->iter), COL_ID, i++, COL_FILEPATH, path, -1);
 		}
+		free(path2);
 		g_free(path);
 		p = q + 1;
 	}

@@ -38,6 +38,14 @@ typedef struct
 	dly_type delaytype;
 }sounddelay;
 
+static inline signed short sounddelay_readsample(sounddelay *s)
+{
+	signed short sample = s->fshort[s->readfront++];
+	s->readfront%=s->fbuffersamples;
+
+	return sample;
+}
+
 void sounddelay_reinit(int N, dly_type delaytype, float millisec, float feedback, sounddelay *s);
 void sounddelay_init(int N, dly_type delaytype, float millisec, float feedback, snd_pcm_format_t format, unsigned int rate, unsigned int channels, sounddelay *s);
 void sounddelay_add(char* inbuffer, int inbuffersize, sounddelay *s);

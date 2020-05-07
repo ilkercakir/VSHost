@@ -23,7 +23,7 @@ typedef struct
 	unsigned int frames;
 
 	int front, rear;
-	int buffersize, cqbufferframes, cqbuffersize;
+	int buffersize, cqbufferframes, cqbuffersize, inbufferframes;
 	char *buffer, *cqbuffer;
 	pthread_mutex_t pipemutex;
 	pthread_cond_t pipehighcond;

@@ -34,10 +34,10 @@ void aef_init(audioeffect *ae)
 	audioeffect_initparameter(ae,  0, "Enable", 0.0, 1.0, 0.0, 1.0, 1, pt_switch);
 	audioeffect_initparameter(ae,  1, "Delay", 1.0, 30.0, 15.0, 1.0, 1, pt_scale);
 	audioeffect_initparameter(ae,  2, "Modulation", 0.0, 1.0, 0.0, 1.0, 1, pt_switch);
-	audioeffect_initparameter(ae,  3, "L Rate Hz", 0.1, 4.0, 0.8, 0.1, 1, pt_scale);
-	audioeffect_initparameter(ae,  4, "L Depth %", 0.1, 10.0, 4.0, 0.1, 1, pt_scale);
-	audioeffect_initparameter(ae,  5, "R Rate Hz", 0.1, 4.0, 1.2, 0.1, 1, pt_scale);
-	audioeffect_initparameter(ae,  6, "R Depth %", 0.1, 10.0, 3.0, 0.1, 1, pt_scale);
+	audioeffect_initparameter(ae,  3, "L Rate Hz", 0.1, 2.0, 0.8, 0.1, 1, pt_scale);
+	audioeffect_initparameter(ae,  4, "L Depth %", 0.1, 5.0, 1.7, 0.1, 1, pt_scale);
+	audioeffect_initparameter(ae,  5, "R Rate Hz", 0.1, 2.0, 1.2, 0.1, 1, pt_scale);
+	audioeffect_initparameter(ae,  6, "R Depth %", 0.1, 5.0, 0.9, 0.1, 1, pt_scale);
 
 	soundstereo_init(ae->format, ae->rate, ae->channels, s);
 	soundvfo_init(ae->parameter[3].value, ae->parameter[4].value/100.0, ae->format, ae->rate, 1, &(s->v[0])); // L
@@ -54,14 +54,11 @@ void aef_setparameter(audioeffect *ae, int i, float value)
 
 /* User defined parameter setter code begin */
 
-	soundstereo *s = (soundstereo *)ae->data;
-
 	switch(i)
 	{
 		case 0: // Enable
 			break;
 		case 1:
-			s->h.millisec = ae->parameter[i].value;
 			break;
 		case 2: // Enable
 			break;
@@ -77,9 +74,6 @@ void aef_setparameter(audioeffect *ae, int i, float value)
 //printf("aef_setparameter %d = %2.2f\n", i, ae->parameter[i].value);
 
 /* User defined parameter setter code end */
-
-	if (ae->parameter[i].resetrequired)
-		aef_reinit(ae);
 }
 
 float aef_getparameter(audioeffect *ae, int i)

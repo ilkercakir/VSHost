@@ -48,7 +48,7 @@ void aef_init(audioeffect *ae)
 	audioeffect_initparameter(ae, 10, eqd->eqlabels[9], -12.0, 12.0, 0.0, 0.1, 0, pt_scale);
 	audioeffect_initparameter(ae, 11, "Gain", 0.0, 2.0, 1.0, 0.1, 0, pt_scale);
 	audioeffect_initparameter(ae, 12, "Auto", 0.0, 1.0, 1.0, 1.0, 0, pt_switch);
-	audioeffect_initparameter(ae, 13, "Preset", 0.0, 6.0, 1.0, 1.0, 1, pt_combo);
+	audioeffect_initparameter(ae, 13, "Preset", 0.0, 6.0, 0.0, 1.0, 0, pt_combo);
 
 	equalizerdata->format = ae->format;
 	equalizerdata->rate = ae->rate;
@@ -187,9 +187,6 @@ void aef_setparameter(audioeffect *ae, int i, float value)
 //printf("aef_setparameter %d = %2.2f\n", i, ae->parameter[i].value);
 
 /* User defined parameter setter code end */
-
-	if (ae->parameter[i].resetrequired)
-		aef_reinit(ae);
 }
 
 float aef_getparameter(audioeffect *ae, int i)

@@ -102,13 +102,7 @@ void init_videoplayer(videoplayer *v, int width, int height, int vqMaxLength, au
 void close_videoplayer(videoplayer *v)
 {
 	avformat_close_input(&(v->pFormatCtx));
-/*
-	if (v->swr)
-	{
-		swr_close(v->swr);
-		swr_free(&(v->swr));
-	}
-*/
+
 	vq_destroy(&(v->vpq));
 	pthread_mutex_destroy(&(v->framemutex));
 	pthread_cond_destroy(&(v->pausecond));
@@ -142,9 +136,10 @@ int open_now_playing(videoplayer *v)
 	av_register_all();
 	avformat_network_init();
 
-	if(avformat_open_input(&(v->pFormatCtx), v->now_playing, NULL, NULL)!=0)
+	if((i=avformat_open_input(&(v->pFormatCtx), v->now_playing, NULL, NULL))!=0)
 	{
-		printf("avformat_open_input()\n");
+		av_strerror(i, err, sizeof(err));
+		printf("file %s\navformat_open_input error %d %s\n", v->now_playing, i, err);
 		return -1; // Couldn't open file
 	}
 
@@ -219,10 +214,10 @@ int open_now_playing(videoplayer *v)
 				v->yuvfmt = YUV422;
 				break;
 			case AV_PIX_FMT_YUV420P:
+			case AV_PIX_FMT_YUVJ420P:
 				v->yuvfmt = YUV420;
 				break;
 			case AV_PIX_FMT_RGBA:
-			case AV_PIX_FMT_YUVJ420P:
 			default:
 				v->yuvfmt = RGBA;
 				break;
@@ -290,6 +285,7 @@ int open_now_playing(videoplayer *v)
 		v->sample_rate = v->pCodecCtxA->sample_rate;
 		v->audioduration = (v->pFormatCtx->duration / AV_TIME_BASE) * v->sample_rate; // in samples
 		//printf("audio frame count %lld\n", audioduration);
+		v->audioduration = v->audioduration * v->spk_samplingrate / v->sample_rate; // resampler correction
 /*
 		int64_t last_ts = pFormatCtx->duration / AV_TIME_BASE;
 		last_ts = (last_ts * (pFormatCtx->streams[audioStream]->time_base.den)) / (pFormatCtx->streams[audioStream]->time_base.num);
@@ -414,6 +410,8 @@ void frame_reader_loop(videoplayer *v)
 					{
 						switch(v->yuvfmt)
 						{
+							case RGBA:
+								break;
 							case YUV422:
 								width = v->lineWidth = pFrame->linesize[0];
 								rgba = malloc(width*height*2);
@@ -429,6 +427,7 @@ void frame_reader_loop(videoplayer *v)
 								memcpy(&rgba[width*height], pFrame->data[1], width*height/4); //u
 								memcpy(&rgba[width*height*5/4], pFrame->data[2], width*height/4); //v
 //printf("linesizes %d %d %d\n", pFrame->linesize[0], pFrame->linesize[1], pFrame->linesize[2]);
+								break;
 						}
 					}
 
@@ -447,6 +446,12 @@ void frame_reader_loop(videoplayer *v)
 					av_frame_unref(pFrame);
 //printf("frame %lld\n", fnum);
 
+					pthread_mutex_lock(&(v->seekmutex));
+					while (v->vpq.playerstatus==PAUSED)
+					{
+						pthread_cond_wait(&(v->pausecond), &(v->seekmutex));
+					}
+					pthread_mutex_unlock(&(v->seekmutex));
 				}
 			//}
 		}
@@ -463,9 +468,11 @@ void frame_reader_loop(videoplayer *v)
 				if (dst_nb_samples > max_dst_nb_samples)
 				{
 					av_freep(&dst_data[0]);
-					ret = av_samples_alloc(dst_data, &line_size, 2, dst_nb_samples, AV_SAMPLE_FMT_S16, 1);
-					if (ret < 0)
+					if ((ret = av_samples_alloc(dst_data, &line_size, 2, dst_nb_samples, AV_SAMPLE_FMT_S16, 1))<0)
+					{
+						printf("av_samples_alloc error %d\n", ret);
 						break;
+					}
 					max_dst_nb_samples = dst_nb_samples;
 				}
 
@@ -484,23 +491,27 @@ void frame_reader_loop(videoplayer *v)
 							//printf("bufsize %d\n", dst_bufsize);
 							audioCQ_add(v->ap, (char *)dst_data[0], dst_bufsize);
 
-							//dst_bufsize / aj->jackframes;
+							v->audioframe += v->ap->inbufferframes;
+							if (!v->videoduration) // no video stream
+							{
+								pthread_mutex_lock(&(v->framemutex));
+								v->now_playing_frame += v->ap->inbufferframes;
+								pthread_mutex_unlock(&(v->framemutex));
 
-								v->audioframe += v->ap->frames;
-								if (!v->videoduration) // no video stream
-								{
-									pthread_mutex_lock(&(v->framemutex));
-									v->now_playing_frame += v->ap->frames;
-									pthread_mutex_unlock(&(v->framemutex));
-
-									if (!(aperiod%10))
-										gdk_threads_add_idle(update_hscale, (void*)v->vpwp);
-								}
-
+								if (!(aperiod%10))
+									gdk_threads_add_idle(update_hscale, (void*)v->vpwp);
+							}
 						}
 					}
 				}
 				av_frame_unref(pFrame);
+
+				pthread_mutex_lock(&(v->seekmutex));
+				while (v->vpq.playerstatus==PAUSED)
+				{
+					pthread_cond_wait(&(v->pausecond), &(v->seekmutex));
+				}
+				pthread_mutex_unlock(&(v->seekmutex));
 			}
 		}
 
@@ -540,7 +551,8 @@ void frame_reader_loop(videoplayer *v)
 	avformat_close_input(&(v->pFormatCtx));
 	avformat_network_deinit();
 
-	free(v->swr);
+	swr_close(v->swr);
+	swr_free(&(v->swr));
 }
 
 void frame_player_loop(videoplayer *v)

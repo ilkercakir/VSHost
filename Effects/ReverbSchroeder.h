@@ -3,8 +3,9 @@
 
 #define _GNU_SOURCE
 
-#include <alsa/asoundlib.h>
-#include "../VSEffect.h"
+#include <sqlite3.h>
+
+#include "../VSEffectShared.h"
 
 #include "DelayS.h"
 #include "BiQuad.h"

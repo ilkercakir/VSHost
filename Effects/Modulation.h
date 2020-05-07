@@ -3,9 +3,7 @@
 
 #define _GNU_SOURCE
 
-#include <alsa/asoundlib.h>
-
-#include "../VSEffect.h"
+#include "../VSEffectShared.h"
 #include "VFO.h"
 
 typedef struct

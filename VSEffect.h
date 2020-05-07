@@ -88,6 +88,12 @@ struct audioeff
 	void *data;
 };
 
+typedef enum
+{
+	TH_STOPPED,
+	TH_RUNNING
+}threadstatus;
+
 typedef struct
 {
 	audioeffectchain *aec;
@@ -101,6 +107,7 @@ typedef struct
 	vpwidgets vpw;
 	playlistparams plparams;
 
+	threadstatus status;
 	cpu_set_t cpu;
 	pthread_t tid;
 	int retval;

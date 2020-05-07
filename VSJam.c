@@ -50,7 +50,9 @@ static gpointer audioout_thread0(gpointer args)
 	pthread_setcanceltype(ctype, &ctype_old);
 
 	audioout *ao = (audioout *)args;
+	audioencoder *aen = (audioencoder *)&(ao->aen);
 	mxthreadparameters *tp = (mxthreadparameters *)&(ao->tp);
+
 	speaker *spk = &(tp->spk);
 
 	init_audiomixer(ao->mixerChannels, MX_BLOCKING, ao->format, ao->rate, ao->frames, ao->channels, &(ao->mx));
@@ -75,6 +77,8 @@ static gpointer audioout_thread0(gpointer args)
 			// process mixed stereo frames here
 
 			write_spk(spk, ao->mx.outbuffer, ao->mx.outbufferframes);
+
+			encoder_add_buffer(aen, ao->mx.outbuffer, ao->mx.outbuffersize); // is a blocking call !
 		}
 		close_audio_hw_spk(spk);
 	}
@@ -177,7 +181,6 @@ static void outputdevicescombo_changed(GtkWidget *combo, gpointer data)
 			g_free(device);
 		}
 	}
-
 }
 
 static void frames_changed(GtkWidget *widget, gpointer data)
@@ -194,13 +197,119 @@ static void frames_changed(GtkWidget *widget, gpointer data)
 	ao->frames = frames;
 
 	audioout_create_thread(ao, ao->tp.device, ao->frames);
-	audiojam_init(aj, aj->maxchains, aj->maxeffects, aj->format, aj->rate, aj->channels, ao->frames, aj->container, aj->dbpath, &(ao->mx));
+	audiojam_init(aj, aj->maxchains, aj->maxeffects, aj->format, aj->rate, aj->channels, ao->frames, aj->container, aj->dbpath, &(ao->mx), aj->window);
 	gtk_widget_show_all(aj->toolbarhbox);
 	gtk_widget_show_all(aj->frame);
-
 }
 
-void audioout_init(audioout *ao, snd_pcm_format_t format, unsigned int rate, unsigned int channels, unsigned int frames, int mixerChannels, audiojam *aj, GtkWidget *container)
+gboolean setrecordingswitchstate(gpointer data)
+{
+	audioout *ao = (audioout *)data;
+	audioencoder *aen = (audioencoder *)&(ao->aen);
+	recordingstate rs;
+
+	rs = encoder_getstate(aen);
+	gtk_switch_set_active(GTK_SWITCH(ao->recordswitch), (rs==RS_RECORDING));
+
+	return FALSE;
+}
+
+int get_format_from_combobox(GtkWidget *combo)
+{
+	gchar *strval;
+	int value;
+
+	g_object_get((gpointer)combo, "active-id", &strval, NULL);
+	//printf("Selected id %s\n", strval);
+	value = atoi((const char *)strval);
+	g_free(strval);
+
+	return(value);
+}
+
+gboolean recordswitch_state_set(GtkSwitch *widget, gboolean state, gpointer user_data)
+{
+	audioout *ao = (audioout *)user_data;
+	audioencoder *aen = (audioencoder *)&(ao->aen);
+
+	GtkWidget *dialog;
+	GtkFileFilter *filter;
+	GtkFileChooserAction action = GTK_FILE_CHOOSER_ACTION_SAVE;
+	char *filterstr;
+	enum AVCodecID codecid;
+	enum AVSampleFormat avformat;
+
+//printf("%s\n", (state?"on":"off"));
+	if (state)
+	{
+		dialog = gtk_file_chooser_dialog_new("Save File", GTK_WINDOW(ao->window), action, "Cancel", GTK_RESPONSE_CANCEL, "Save", GTK_RESPONSE_ACCEPT, NULL);
+		GtkFileChooser *chooser = GTK_FILE_CHOOSER(dialog);
+
+		filter = gtk_file_filter_new();
+		switch (get_format_from_combobox(ao->recordformats))
+		{
+			case 0:
+				filterstr = "*.mp3";
+				codecid = AV_CODEC_ID_MP3;
+				avformat = AV_SAMPLE_FMT_S16P;
+				break;
+			case 1:
+				filterstr = "*.aac";
+				codecid = AV_CODEC_ID_AAC;
+				avformat = AV_SAMPLE_FMT_FLTP;
+				break;
+			case 2:
+				filterstr = "*.flac";
+				codecid = AV_CODEC_ID_FLAC;
+				avformat = AV_SAMPLE_FMT_S16;
+				break;
+			default:
+				filterstr = "*.mp3";
+				codecid = AV_CODEC_ID_MP3;
+				avformat = AV_SAMPLE_FMT_S16P;
+				break;
+		}
+
+		gtk_file_filter_add_pattern(filter, filterstr);
+		gtk_file_chooser_add_filter(chooser, filter);
+		gtk_file_chooser_set_do_overwrite_confirmation (chooser, TRUE);
+
+		if (gtk_dialog_run(GTK_DIALOG(dialog)) == GTK_RESPONSE_ACCEPT)
+		{
+			char *filename = gtk_file_chooser_get_filename(chooser);
+			ao->recordedfilename = malloc(strlen(filename)+1);
+			strcpy(ao->recordedfilename, filename);
+			g_free(filename);
+
+			int err = start_encoder(&(ao->aen), ao->recordedfilename, codecid, avformat, ao->format, ao->rate, ao->channels, 96000);
+			if (!err)
+			{
+			}
+			else
+			{
+				gdk_threads_add_idle(setrecordingswitchstate, (void*)ao);
+			}
+		}
+		else
+		{
+			gdk_threads_add_idle(setrecordingswitchstate, (void*)ao);
+		}
+		gtk_widget_destroy(dialog);
+	}
+	else
+	{
+		stop_encoder(aen);
+		free(ao->recordedfilename);
+	}
+	return TRUE;
+}
+
+void recordformats_changed(GtkWidget *combo, gpointer data)
+{
+//printf("combo %d\n", get_format_from_combobox(combo));
+}
+
+void audioout_init(audioout *ao, snd_pcm_format_t format, unsigned int rate, unsigned int channels, unsigned int frames, int mixerChannels, audiojam *aj, GtkWidget *container, GtkWidget *window)
 {
 	strcpy(ao->name, "Audio Mixer");
 	ao->format = format;
@@ -211,7 +320,10 @@ void audioout_init(audioout *ao, snd_pcm_format_t format, unsigned int rate, uns
 	ao->aj = aj;
 	ao->tp.tid = 0;
 
+	ao->window = window;
 	ao->container = container;
+
+	init_encoder(&(ao->aen));
 
 // frame
 	ao->outputframe = gtk_frame_new("Audio Mixer");
@@ -242,6 +354,25 @@ void audioout_init(audioout *ao, snd_pcm_format_t format, unsigned int rate, uns
 	g_signal_connect(GTK_SPIN_BUTTON(ao->spinbutton), "value-changed", G_CALLBACK(frames_changed), ao);
 	gtk_container_add(GTK_CONTAINER(ao->outputhbox), ao->spinbutton);
 
+// record label
+	ao->recordlabel = gtk_label_new("Record");
+	gtk_container_add(GTK_CONTAINER(ao->outputhbox), GTK_WIDGET(ao->recordlabel));
+
+// recording formats combo
+	ao->recordformats = gtk_combo_box_text_new();
+	gtk_combo_box_text_append(GTK_COMBO_BOX_TEXT(ao->recordformats), "0", "mp3");
+	gtk_combo_box_text_append(GTK_COMBO_BOX_TEXT(ao->recordformats), "1", "aac");
+	gtk_combo_box_text_append(GTK_COMBO_BOX_TEXT(ao->recordformats), "2", "flac");
+	g_object_set((gpointer)ao->recordformats, "active-id", "0", NULL);
+	g_signal_connect(GTK_COMBO_BOX(ao->recordformats), "changed", G_CALLBACK(recordformats_changed), (void *)ao->recordformats);
+	gtk_container_add(GTK_CONTAINER(ao->outputhbox), GTK_WIDGET(ao->recordformats));
+
+// record switch
+	ao->recordswitch = gtk_switch_new();
+	g_signal_connect(GTK_SWITCH(ao->recordswitch), "state-set", G_CALLBACK(recordswitch_state_set), (void *)ao);
+	gtk_container_add(GTK_CONTAINER(ao->outputhbox), GTK_WIDGET(ao->recordswitch));
+	//gtk_box_pack_start(GTK_BOX(ao->toolbarframehbox), ao->recordswitch, FALSE, FALSE, 0);
+
 	gchar *device;
 	g_object_get((gpointer)ao->outputdevices, "active-id", &device, NULL);
 	audioout_create_thread(ao, device, ao->frames);
@@ -251,6 +382,8 @@ void audioout_init(audioout *ao, snd_pcm_format_t format, unsigned int rate, uns
 void audioout_close(audioout *ao)
 {
 	audioout_terminate_thread(ao);
+
+	close_encoder(&(ao->aen));
 }
 
 // Audio Effect Chains
@@ -260,8 +393,9 @@ void addchainbutton_clicked(GtkToolButton *toolbutton, gpointer data)
 	audiojam *aj = (audiojam*)data;
 
 	const gchar *text = gtk_entry_get_text(GTK_ENTRY(aj->chainnameentry));
-	audiojam_addchain(aj, (char *)text);
-//    g_print("Button clicked\n");
+	if (strcmp((char *)text, ""))
+		audiojam_addchain(aj, (char *)text);
+//	g_print("Button clicked\n");
 }
 
 void savechainsbutton_clicked(GtkToolButton *toolbutton, gpointer data)
@@ -274,8 +408,7 @@ void savechainsbutton_clicked(GtkToolButton *toolbutton, gpointer data)
 			continue;
 		audioeffectchain_save(&(aj->aec[aj->aeci]));
 	}
-
-//    g_print("Button clicked\n");
+//	g_print("Button clicked\n");
 }
 
 int audiojam_selectchains_callback(void *data, int argc, char **argv, char **azColName) 
@@ -284,7 +417,6 @@ int audiojam_selectchains_callback(void *data, int argc, char **argv, char **azC
 
 	audioeffectchain_init(&(aj->aec[aj->aeci]), argv[1], atoi((const char *)argv[0]), aj->mx, aj->hbox, aj->dbpath);
 	aj->aeci++;
-
 	return 0;
 }
 
@@ -298,11 +430,9 @@ int audiojam_selectinputs_callback(void *data, int argc, char **argv, char **azC
 		if (aj->aec[i].id == id)
 		{
 			g_object_set((gpointer)aj->aec[i].inputdevices, "active-id", argv[1], NULL);
-//printf("set %d to %s\n", i, argv[1]);
 			break;
 		}
 	}
-
 	return 0;
 }
 
@@ -376,7 +506,7 @@ void audiojam_loadfromdb(audiojam *aj)
 		{
 			if (aj->aec[i].id)
 			{
-				sprintf(sql, "select audioeffects.id, audioeffects.path from chaineffects inner join audioeffects on audioeffects.id = chaineffects.effect where chaineffects.chain = %d order by id;", aj->aec[i].id);
+				sprintf(sql, "select audioeffects.id, audioeffects.path from chaineffects inner join audioeffects on audioeffects.id = chaineffects.effect where chaineffects.chain = %d;", aj->aec[i].id);
 				//printf("%s\n", sql);
 				aj->aeci = i;
 				if ((rc = sqlite3_exec(db, sql, audiojam_select_audioeffects_callback, (void*)aj, &err_msg)) != SQLITE_OK)
@@ -394,7 +524,7 @@ void audiojam_loadfromdb(audiojam *aj)
 	sqlite3_close(db);
 }
 
-void audiojam_init(audiojam *aj, int maxchains, int maxeffects, snd_pcm_format_t format, unsigned int rate, unsigned int channels, unsigned int frames, GtkWidget *container, char *dbpath, audiomixer *mx)
+void audiojam_init(audiojam *aj, int maxchains, int maxeffects, snd_pcm_format_t format, unsigned int rate, unsigned int channels, unsigned int frames, GtkWidget *container, char *dbpath, audiomixer *mx, GtkWidget *window)
 {
 	int i, j, ret;
 
@@ -406,6 +536,7 @@ void audiojam_init(audiojam *aj, int maxchains, int maxeffects, snd_pcm_format_t
 	aj->maxeffects = maxeffects;
 	strcpy(aj->dbpath, dbpath);
 	aj->mx = mx;
+	aj->window = window;
 
 	aj->container = container;
 
@@ -413,9 +544,19 @@ void audiojam_init(audiojam *aj, int maxchains, int maxeffects, snd_pcm_format_t
 	aj->toolbarhbox = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 5);
 	gtk_container_add(GTK_CONTAINER(aj->container), aj->toolbarhbox);
 
+// toolbarframe
+	aj->toolbarframe = gtk_frame_new("Toolbar");
+	gtk_container_add(GTK_CONTAINER(aj->toolbarhbox), aj->toolbarframe);
+	//gtk_box_pack_start(GTK_BOX(aj->toolbarhbox), aj->toolbarframe, TRUE, TRUE, 0);
+
+// toolbarframe horizontal box
+	aj->toolbarframehbox = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 5);
+	gtk_container_add(GTK_CONTAINER(aj->toolbarframe), aj->toolbarframehbox);
+	//gtk_box_pack_start(GTK_BOX(aj->toolbarframe), aj->toolbarframehbox, TRUE, TRUE, 0);
+
 // toolbar
 	aj->toolbar = gtk_toolbar_new();
-	gtk_container_add(GTK_CONTAINER(aj->toolbarhbox), aj->toolbar);
+	gtk_container_add(GTK_CONTAINER(aj->toolbarframehbox), aj->toolbar);
 	//gtk_box_pack_start(GTK_BOX(aj->toolbarhbox), aj->toolbar, TRUE, TRUE, 0);
 
 	aj->icon_widget = gtk_image_new_from_icon_name("document-save", GTK_ICON_SIZE_BUTTON);
@@ -431,7 +572,7 @@ void audiojam_init(audiojam *aj, int maxchains, int maxeffects, snd_pcm_format_t
 	gtk_toolbar_insert(GTK_TOOLBAR(aj->toolbar), aj->addchainbutton, -1);
 
 	aj->chainnameentry = gtk_entry_new();
-	gtk_container_add(GTK_CONTAINER(aj->toolbarhbox), GTK_WIDGET(aj->chainnameentry));
+	gtk_container_add(GTK_CONTAINER(aj->toolbarframehbox), GTK_WIDGET(aj->chainnameentry));
 
 // frame
 	aj->frame = gtk_frame_new("Effect Chains");
@@ -455,6 +596,7 @@ void audiojam_init(audiojam *aj, int maxchains, int maxeffects, snd_pcm_format_t
 		strcpy(aj->aec[i].dbpath, aj->dbpath);
 		aj->aec[i].tp.tid = 0;
 		aj->aec[i].channelbuffers = 2;
+		aj->aec[i].tp.status = TH_STOPPED;
 
 		aj->aec[i].effects = maxeffects;
 		aj->aec[i].ae = malloc(sizeof(audioeffect) * aj->aec[i].effects);
@@ -469,7 +611,6 @@ void audiojam_init(audiojam *aj, int maxchains, int maxeffects, snd_pcm_format_t
 				printf("effect mutex init failed, %d\n", ret);
 		}
 	}
-
 	audiojam_loadfromdb(aj);
 }
 

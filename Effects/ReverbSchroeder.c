@@ -58,16 +58,12 @@ void aef_setparameter(audioeffect *ae, int i, float value)
 		case 0: // Enable
 			break;
 		case 1: // Reflect
-			r->reflect = (int)ae->parameter[i].value;
 			break;
 		case 2: // Delay ms
-			r->reverbdelaylines = (int)ae->parameter[i].value;
 			break;
 		case 3: // Feedback
-			r->feedback = ae->parameter[i].value;
 			break;
 		case 4: // Presence
-			r->presence = ae->parameter[i].value;
 			break;
 		case 5: // EQ Band 0
 			r->reverbeqdef.eqfreqs[0] = ae->parameter[i].value;
@@ -76,9 +72,6 @@ void aef_setparameter(audioeffect *ae, int i, float value)
 //printf("aef_setparameter %d = %2.2f\n", i, ae->parameter[i].value);
 
 /* User defined parameter setter code end */
-
-	if (ae->parameter[i].resetrequired)
-		aef_reinit(ae);
 }
 
 float aef_getparameter(audioeffect *ae, int i)
@@ -168,10 +161,6 @@ void soundreverb_initprimes(soundreverb *r)
 	int rc;
 	int i;
 
-	r->reverbprimes = malloc(r->reverbdelaylines*sizeof(float));
-	r->feedbacks = malloc(r->reverbdelaylines*sizeof(float));
-	r->snddlyrev = malloc(r->reverbdelaylines*sizeof(sounddelay));
-
 	r->i = 0;
 
 	if ((rc = sqlite3_open("/var/sqlite3DATA/mediaplayer.db", &db)))
@@ -211,16 +200,17 @@ void soundreverb_reinit(int reflect, int delaylines, float feedback, float prese
 	int i;
 
 	AudioEqualizer_close(&(r->reverbeq));
-	for(i=0; i<r->reverbdelaylines; i++)
+
+	for(i=0;i<r->reverbdelaylines;i++)
 	{
-		if (r->snddlyrev[i].fbuffer)
-		{
-			free(r->snddlyrev[i].fbuffer);
-			r->snddlyrev[i].fbuffer = NULL;
-		}
+		sounddelay_close(&(r->snddlyrev[i]));
 	}
-	free(r->bbuf);
-	r->bbuf = NULL;
+
+	if (r->bbuf)
+	{
+		free(r->bbuf);
+		r->bbuf = NULL;
+	}
 	free(r->reverbprimes);
 	r->reverbprimes = NULL;
 	free(r->feedbacks);
@@ -232,12 +222,18 @@ void soundreverb_reinit(int reflect, int delaylines, float feedback, float prese
 	r->reverbdelaylines = delaylines;
 	r->feedback = feedback;
 	r->presence = presence;
+
+	r->reverbprimes = malloc(r->reverbdelaylines*sizeof(float));
+	r->feedbacks = malloc(r->reverbdelaylines*sizeof(float));
+	r->snddlyrev = malloc(r->reverbdelaylines*sizeof(sounddelay));
+
 	soundreverb_initprimes(r);
 	for(i=0;i<r->reverbdelaylines;i++)
 	{
 		sounddelay_init(r->reverbdelaylines, DLY_REVERB, r->reverbprimes[i], r->feedbacks[i], r->format, r->rate, r->channels, &(r->snddlyrev[i]));
 	}
-//printf("%d %d %5.2f %5.2f\n", r->reflect, r->reverbdelaylines, r->feedback, r->presence);
+
+	r->bbuf = NULL;
 	r->eqoctave = 1.0;
 
 	AudioEqualizer_init(&(r->reverbeq), 1, r->eqoctave, 1, 1, r->format, r->rate, r->channels, d);
@@ -254,6 +250,11 @@ void soundreverb_init(int reflect, int delaylines, float feedback, float presenc
 	r->reverbdelaylines = delaylines;
 	r->feedback = feedback;
 	r->presence = presence;
+
+	r->reverbprimes = malloc(r->reverbdelaylines*sizeof(float));
+	r->feedbacks = malloc(r->reverbdelaylines*sizeof(float));
+	r->snddlyrev = malloc(r->reverbdelaylines*sizeof(sounddelay));
+
 	soundreverb_initprimes(r);
 	for(i=0;i<r->reverbdelaylines;i++)
 	{
@@ -271,8 +272,8 @@ void soundreverb_add(char* inbuffer, int inbuffersize, soundreverb *r)
 	int i, j, *readfront, *fbsamples;
 	signed short *dstbuf, *srcbuf;
 
-	for(i=0; i<r->reverbdelaylines; i++)
-	{
+	for(i=0;i<r->reverbdelaylines;i++)
+	{	
 		sounddelay_add(inbuffer, inbuffersize, &(r->snddlyrev[i]));
 	}
 
@@ -280,21 +281,21 @@ void soundreverb_add(char* inbuffer, int inbuffersize, soundreverb *r)
 	{
 		r->bbuf = malloc(inbuffersize);
 	}
+
 	memset(r->bbuf, 0, inbuffersize);
 	dstbuf = (signed short*)r->bbuf;
-	for(i=0; i<r->reverbdelaylines; i++)
+	for(i=0;i<r->reverbdelaylines;i++)
 	{
 		srcbuf = (signed short*)r->snddlyrev[i].fbuffer;
 		readfront = &(r->snddlyrev[i].readfront);
 		fbsamples = &(r->snddlyrev[i].fbuffersamples);
-		for(j=0; j<r->snddlyrev[i].insamples; j++)
+		for(j=0;j<r->snddlyrev[i].insamples;j++)
 		{
 			dstbuf[j] += srcbuf[(*readfront)++] * r->presence;
 			(*readfront)%=(*fbsamples);
 		}
 	}
 
-	//RevBiQuad_process((uint8_t*)r->bbuf, inbuffersize, snd_pcm_format_width(r->format)/8*r->channels, r);
 	AudioEqualizer_BiQuadProcess(&(r->reverbeq), (uint8_t*)r->bbuf, inbuffersize);
 
 	dstbuf = (signed short*)inbuffer;
@@ -310,20 +311,16 @@ void soundreverb_close(soundreverb *r)
 	int i;
 
 	AudioEqualizer_close(&(r->reverbeq));
-	for(i=0; i<r->reverbdelaylines; i++)
+	for(i=0;i<r->reverbdelaylines;i++)
 	{
-		if (r->snddlyrev[i].fbuffer)
-		{
-			free(r->snddlyrev[i].fbuffer);
-			r->snddlyrev[i].fbuffer = NULL;
-		}
+		sounddelay_close(&(r->snddlyrev[i]));
 	}
+		
 	if (r->bbuf)
 	{
 		free(r->bbuf);
 		r->bbuf = NULL;
 	}
-	r->bbuf = NULL;
 	free(r->reverbprimes);
 	r->reverbprimes = NULL;
 	free(r->feedbacks);

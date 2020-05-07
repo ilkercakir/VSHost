@@ -49,17 +49,19 @@ void aef_setparameter(audioeffect *ae, int i, float value)
 
 	switch(i)
 	{
-		case 1:
+		case 0: // when resetrequired defer "ae->data.parametervalue = ae->parameter[i].value" to aef_reinit()
+			break;
+		case 1: // when dependent parameters exist
 			audioeffect_setdependentparameter(ae, 5, ae->parameter[i].value); // set dependent parameter value and visualization
+			break;
+		case 2: // when not resetrequired
+			// ae->data.parametervalue = ae->parameter[i].value;
 			break;
 	}
 
 //printf("aef_setparameter %d = %2.2f\n", i, ae->parameter[i].value);
 
 /* User defined parameter setter code end */
-
-	if (ae->parameter[i].resetrequired)
-		aef_reinit(ae);
 }
 
 float aef_getparameter(audioeffect *ae, int i)
@@ -80,7 +82,9 @@ void aef_reinit(audioeffect *ae)
 {
 /* User defined reinitialization code begin */
 
-
+// free ae->data.parameter
+// ae->data.parametervalue = ae->parameter[i].value
+// malloc ae->data.parameter
 
 /* User defined reinitialization code end */
 }

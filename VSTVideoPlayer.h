@@ -21,6 +21,7 @@
 #include "VideoQueue.h"
 #include "YUV420RGBgl.h"
 #include "AudioPipeNB.h"
+#include "AudioMixer.h"
 
 enum
 {

@@ -70,7 +70,6 @@ GtkWidget *nbpage2;
 int hscaleupd, sliding, playerWidth, playerHeight;
 
 videoplayer vp;
-
 audiopipe ap;
 
 int last_id;
@@ -94,7 +93,7 @@ void init_playlistparams(playlistparams *plparams, vpwidgets *vpw, int vqMaxLeng
 void close_playlistparams(playlistparams *plparams);
 void toggle_vp(vpwidgets *vpw, GtkWidget *togglebutton);
 void init_videoplayerwidgets(playlistparams *plp, int playWidth, int playHeight);
-void close_videoplayerwidgets(vpwidgets *vpw);
+void close_videoplayerwidgets(playlistparams *plp);
 void press_vp_stop_button(playlistparams *plp);
 void press_vp_resume_button(playlistparams *plp);
 char* strlastpart(char *src, char *search, int lowerupper);

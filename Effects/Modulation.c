@@ -47,25 +47,18 @@ void aef_setparameter(audioeffect *ae, int i, float value)
 
 /* User defined parameter setter code begin */
 
-	soundmod *m = (soundmod *)ae->data;
-
 	switch(i)
 	{
 		case 0: // Enable
 			break;
 		case 1:
-			m->modfreq = ae->parameter[i].value;
 			break;
 		case 2:
-			m->moddepth = ae->parameter[i].value;
 			break;
 	}
 //printf("aef_setparameter %d = %2.2f\n", i, ae->parameter[i].value);
 
 /* User defined parameter setter code end */
-
-	if (ae->parameter[i].resetrequired)
-		aef_reinit(ae);
 }
 
 float aef_getparameter(audioeffect *ae, int i)
