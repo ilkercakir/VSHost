@@ -74,12 +74,21 @@ struct auout
 	GtkWidget *container;
 	GtkWidget *outputframe;
 	GtkWidget *outputhbox;
+	GtkWidget *outputdevicesvbox;
 	GtkWidget *outputdevices;
+	GtkWidget *ledvbox;
 	GtkWidget *led;
+	GtkWidget *framesvbox;
+	GtkWidget *frameshbox;
 	GtkWidget *frameslabel;
+	GtkWidget *spinbuttonvbox;
 	GtkWidget *spinbutton;
+	GtkWidget *recordvbox;
+	GtkWidget *recordhbox;
 	GtkWidget *recordlabel;
+	GtkWidget *recordformatsvbox;
 	GtkWidget *recordformats;
+	GtkWidget *recordswitchvbox;
 	GtkWidget *recordswitch;
 
 	int mixerChannels;

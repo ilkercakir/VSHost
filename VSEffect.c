@@ -135,13 +135,79 @@ void removeeffectbutton_clicked(GtkToolButton *toolbutton, gpointer data)
 		(ae->aef_close)(ae);
 		dlclose(ae->handle);
 		ae->handle = NULL;
+		audioeffectchain_unorder(aec, ae->index);
 	}
 	pthread_mutex_unlock(&(ae->effectmutex));
-	pthread_mutex_destroy(&(ae->effectmutex));
 
 	pthread_mutex_unlock(&(aec->rackmutex));
 
 	gtk_widget_destroy(ae->frame);
+}
+
+void reparent_effects(audioeffectchain *aec)
+{
+	int i, j;
+
+	for(i=0;i<aec->effects;i++)
+	{
+		j = aec->aeorder[i];
+		if (j == -1) break;
+		g_object_ref(aec->ae[i].frame);
+		gtk_container_remove(GTK_CONTAINER(aec->ae[i].container), aec->ae[i].frame);
+	}
+	for(i=0;i<aec->effects;i++)
+	{
+		j = aec->aeorder[i];
+		if (j == -1) break;
+		gtk_box_pack_start(GTK_BOX(aec->ae[j].container), aec->ae[j].frame, TRUE, TRUE, 0);
+		//gtk_container_add(GTK_CONTAINER(aec->ae[i].container), aec->ae[i].frame);
+		g_object_unref(aec->ae[j].frame);
+	}
+}
+
+void moveeffectupbutton_clicked(GtkToolButton *toolbutton, gpointer data)
+{
+	audioeffect *ae = (audioeffect *)data;
+	audioeffectchain *aec = (audioeffectchain *)ae->parent;
+	int i, j;
+
+	for(i=0;i<aec->effects;i++)
+		if (aec->aeorder[i] == ae->index) break;
+
+	if (i)
+	{
+		pthread_mutex_lock(&(aec->rackmutex));
+		j = aec->aeorder[i-1];
+		aec->aeorder[i-1] = aec->aeorder[i];
+		aec->aeorder[i] = j;
+		pthread_mutex_unlock(&(aec->rackmutex));
+
+		reparent_effects(aec);
+	}
+}
+
+void moveeffectdownbutton_clicked(GtkToolButton *toolbutton, gpointer data)
+{
+	audioeffect *ae = (audioeffect *)data;
+	audioeffectchain *aec = (audioeffectchain *)ae->parent;
+	int i, j;
+
+	for(i=0;i<aec->effects;i++)
+		if (aec->aeorder[i] == ae->index) break;
+
+	if (i<aec->effects-1)
+	{
+		if (aec->aeorder[i+1] != -1)
+		{
+			pthread_mutex_lock(&(aec->rackmutex));
+			j = aec->aeorder[i+1];
+			aec->aeorder[i+1] = aec->aeorder[i];
+			aec->aeorder[i] = j;
+			pthread_mutex_unlock(&(aec->rackmutex));
+
+			reparent_effects(aec);
+		}
+	}
 }
 
 void audioeffect_init(audioeffect *ae, int id)
@@ -238,12 +304,26 @@ void audioeffect_init(audioeffect *ae, int id)
 
 	ae->toolbar = gtk_toolbar_new();
 	gtk_container_add(GTK_CONTAINER(ae->vtoolbox), ae->toolbar);
+	g_object_set(G_OBJECT(ae->toolbar), "orientation", GTK_ORIENTATION_VERTICAL, NULL);
+	g_object_set(G_OBJECT(ae->toolbar), "toolbar-style", GTK_TOOLBAR_ICONS, NULL);
 
 	ae->icon_widget = gtk_image_new_from_icon_name("list-remove", GTK_ICON_SIZE_BUTTON);
 	ae->removeeffectbutton = gtk_tool_button_new(ae->icon_widget, "Remove Effect");
 	gtk_tool_item_set_tooltip_text(ae->removeeffectbutton, "Remove Effect");
 	g_signal_connect(ae->removeeffectbutton, "clicked", G_CALLBACK(removeeffectbutton_clicked), ae);
 	gtk_toolbar_insert(GTK_TOOLBAR(ae->toolbar), ae->removeeffectbutton, -1);
+
+	ae->icon_up_widget = gtk_image_new_from_icon_name("up", GTK_ICON_SIZE_BUTTON);
+	ae->moveeffectupbutton = gtk_tool_button_new(ae->icon_up_widget, "Move Up");
+	gtk_tool_item_set_tooltip_text(ae->moveeffectupbutton, "Move Up");
+	g_signal_connect(ae->moveeffectupbutton, "clicked", G_CALLBACK(moveeffectupbutton_clicked), ae);
+	gtk_toolbar_insert(GTK_TOOLBAR(ae->toolbar), ae->moveeffectupbutton, -1);
+
+	ae->icon_down_widget = gtk_image_new_from_icon_name("down", GTK_ICON_SIZE_BUTTON);
+	ae->moveeffectdownbutton = gtk_tool_button_new(ae->icon_down_widget, "Move Down");
+	gtk_tool_item_set_tooltip_text(ae->moveeffectdownbutton, "Move Down");
+	g_signal_connect(ae->moveeffectdownbutton, "clicked", G_CALLBACK(moveeffectdownbutton_clicked), ae);
+	gtk_toolbar_insert(GTK_TOOLBAR(ae->toolbar), ae->moveeffectdownbutton, -1);
 }
 
 void audioeffect_allocateparameters(audioeffect *ae, int count)
@@ -1260,6 +1340,36 @@ void audioeffectchain_init(audioeffectchain *aec, char *name, int id, audiomixer
 	g_free(device);
 }
 
+void audioeffectchain_order(audioeffectchain *aec, int effect)
+{
+	int j;
+
+	for(j=0;aec->aeorder[j]>-1;j++);
+	aec->aeorder[j] = effect;
+//printf("order\n");
+//for(j=0;j<aec->effects;j++)
+//	printf("%d\n", aec->aeorder[j]);
+}
+
+void audioeffectchain_unorder(audioeffectchain *aec, int effect)
+{
+	int j;
+
+	for(j=0;j<aec->effects;j++)
+	{
+		if (aec->aeorder[j]==effect)
+			break;
+	}
+
+	for(j++;j<aec->effects;j++)
+		aec->aeorder[j-1] = aec->aeorder[j];
+
+	aec->aeorder[aec->effects-1] = -1;
+//printf("order\n");
+//for(j=0;j<aec->effects;j++)
+//	printf("%d\n", aec->aeorder[j]);
+}
+
 int audioeffectchain_loadeffect(audioeffectchain *aec, int id, char *path)
 {
 	char *error;
@@ -1273,6 +1383,8 @@ int audioeffectchain_loadeffect(audioeffectchain *aec, int id, char *path)
 	}
 	if (i<aec->effects) // empty slot found
 	{
+		audioeffectchain_order(aec, i);
+
 		strcpy(aec->ae[i].sopath, path);
 		aec->ae[i].container = aec->vbox;
 
@@ -1345,6 +1457,7 @@ int audioeffectchain_loadeffect(audioeffectchain *aec, int id, char *path)
 	return i;
 }
 
+/*
 void audioeffectchain_process(audioeffectchain *aec, char *inbuffer, int inbuffersize)
 {
 	int effect;
@@ -1361,6 +1474,26 @@ void audioeffectchain_process(audioeffectchain *aec, char *inbuffer, int inbuffe
 	}
 	pthread_mutex_unlock(&(aec->rackmutex));
 }
+*/
+void audioeffectchain_process(audioeffectchain *aec, char *inbuffer, int inbuffersize)
+{
+	int effect, i;
+	audioeffect *ae;
+
+	pthread_mutex_lock(&(aec->rackmutex));
+	if (aec->id)
+	{
+		for(i=0;i<aec->effects;i++)
+		{
+			effect = aec->aeorder[i];
+			if (effect==-1)
+				break;
+			ae = &(aec->ae[effect]); 
+			audioeffect_process(ae, (uint8_t*)inbuffer, inbuffersize);
+		}
+	}
+	pthread_mutex_unlock(&(aec->rackmutex));
+}
 
 void audioeffectchain_unloadeffect(audioeffectchain *aec, int effect)
 {
@@ -1370,6 +1503,7 @@ void audioeffectchain_unloadeffect(audioeffectchain *aec, int effect)
 		audioeffect_close(&(aec->ae[effect]));
 		dlclose(aec->ae[effect].handle);
 		aec->ae[effect].handle = NULL;
+		audioeffectchain_unorder(aec, effect);
 	}
 	pthread_mutex_unlock(&(aec->rackmutex));
 }

@@ -49,6 +49,7 @@ struct audioeff
 	unsigned int channels; // channels
 
 	void *parent; // audioeffectchain
+	int index;
 
 	int parameters;
 	audioeffectparameter *parameter;
@@ -61,6 +62,10 @@ struct audioeff
 	GtkWidget *toolbar;
 	GtkWidget *icon_widget;
 	GtkToolItem *removeeffectbutton;
+	GtkWidget *icon_up_widget;
+	GtkToolItem *moveeffectupbutton;
+	GtkWidget *icon_down_widget;
+	GtkToolItem *moveeffectdownbutton;
 
 	void (*aef_init)(audioeffect*); // init
 	void (*aef_setparameter)(audioeffect*, int, float); // setparameter
@@ -71,4 +76,9 @@ struct audioeff
 
 	void *data;
 };
+
+void audioeffect_allocateparameters(audioeffect *ae, int count);
+void audioeffect_initparameter(audioeffect *ae, int i, char* name, float minval, float maxval, float value, float step, int resetrequired, parametertype ptype);
+void audioeffect_setdependentparameter(audioeffect *ae, int i, float value);
+void audioeffect_deallocateparameters(audioeffect *ae);
 #endif

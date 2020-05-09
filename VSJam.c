@@ -327,36 +327,67 @@ void audioout_init(audioout *ao, snd_pcm_format_t format, unsigned int rate, uns
 
 // frame
 	ao->outputframe = gtk_frame_new("Audio Mixer");
-	gtk_container_add(GTK_CONTAINER(ao->container), ao->outputframe);
-	//gtk_box_pack_start(GTK_BOX(ao->container), ao->outputframe, TRUE, TRUE, 0);
+	//gtk_container_add(GTK_CONTAINER(ao->container), ao->outputframe);
+	gtk_box_pack_start(GTK_BOX(ao->container), ao->outputframe, TRUE, TRUE, 0);
 
 // horizontal box
 	ao->outputhbox = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 5);
 	gtk_container_add(GTK_CONTAINER(ao->outputframe), ao->outputhbox);
-	//gtk_box_pack_start(GTK_BOX(ae->outputframe), ao->outputhbox, TRUE, TRUE, 0);
+	//gtk_box_pack_start(GTK_BOX(ao->outputframe), ao->outputhbox, TRUE, TRUE, 0);
 
-// add output devices combo
+// output devices vbox
+	ao->outputdevicesvbox = gtk_box_new(GTK_ORIENTATION_VERTICAL, 5);
+	gtk_container_add(GTK_CONTAINER(ao->outputhbox), ao->outputdevicesvbox);
+	//gtk_box_pack_start(GTK_BOX(ao->outputhbox), ao->vbox1, TRUE, TRUE, 0);
+
+// output devices combo
 	ao->outputdevices = gtk_combo_box_text_new();
 	populate_output_devices_list(ao->outputdevices);
 	g_signal_connect(GTK_COMBO_BOX(ao->outputdevices), "changed", G_CALLBACK(outputdevicescombo_changed), ao);
-	gtk_container_add(GTK_CONTAINER(ao->outputhbox), ao->outputdevices);
-	//gtk_box_pack_start(GTK_BOX(ae->outputhbox), ao->outputdevices, TRUE, TRUE, 0);
+	gtk_container_add(GTK_CONTAINER(ao->outputdevicesvbox), ao->outputdevices);
+	//gtk_box_pack_start(GTK_BOX(ao->outputdevicesvbox), ao->outputdevices, TRUE, TRUE, 0);
 
+// output device led vbox
+	ao->ledvbox = gtk_box_new(GTK_ORIENTATION_VERTICAL, 5);
+	gtk_container_add(GTK_CONTAINER(ao->outputhbox), ao->ledvbox);
+	//gtk_box_pack_start(GTK_BOX(ao->outputhbox), ao->vbox1, TRUE, TRUE, 0);
+
+// output device led
 	ao->led = gtk_image_new();
 	gtk_image_set_from_file(GTK_IMAGE(ao->led), "./images/red.png");
-	gtk_container_add(GTK_CONTAINER(ao->outputhbox), ao->led);
+	gtk_container_add(GTK_CONTAINER(ao->ledvbox), ao->led);
+
+// frames vbox
+	ao->framesvbox = gtk_box_new(GTK_ORIENTATION_VERTICAL, 5);
+	gtk_container_add(GTK_CONTAINER(ao->outputhbox), ao->framesvbox);
+	//gtk_box_pack_start(GTK_BOX(ao->outputhbox), ao->vbox1, TRUE, TRUE, 0);
+
+// frames hbox
+	ao->frameshbox = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 5);
+	gtk_container_add(GTK_CONTAINER(ao->framesvbox), ao->frameshbox);
+	//gtk_box_pack_start(GTK_BOX(ao->outputhbox), ao->vbox1, TRUE, TRUE, 0);
 
 // frames
 	ao->frameslabel = gtk_label_new("Frames");
-	gtk_container_add(GTK_CONTAINER(ao->outputhbox), ao->frameslabel);
+	gtk_container_add(GTK_CONTAINER(ao->frameshbox), ao->frameslabel);
 	ao->spinbutton = gtk_spin_button_new_with_range(32.0, 1024.0 , 1.0);
 	gtk_spin_button_set_value(GTK_SPIN_BUTTON(ao->spinbutton), (float)ao->frames);
 	g_signal_connect(GTK_SPIN_BUTTON(ao->spinbutton), "value-changed", G_CALLBACK(frames_changed), ao);
-	gtk_container_add(GTK_CONTAINER(ao->outputhbox), ao->spinbutton);
+	gtk_container_add(GTK_CONTAINER(ao->frameshbox), ao->spinbutton);
+
+// recod vbox
+	ao->recordvbox = gtk_box_new(GTK_ORIENTATION_VERTICAL, 5);
+	gtk_container_add(GTK_CONTAINER(ao->outputhbox), ao->recordvbox);
+	//gtk_box_pack_start(GTK_BOX(ao->outputhbox), ao->vbox1, TRUE, TRUE, 0);
+
+// record hbox
+	ao->recordhbox = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 5);
+	gtk_container_add(GTK_CONTAINER(ao->recordvbox), ao->recordhbox);
+	//gtk_box_pack_start(GTK_BOX(ao->outputhbox), ao->vbox1, TRUE, TRUE, 0);
 
 // record label
 	ao->recordlabel = gtk_label_new("Record");
-	gtk_container_add(GTK_CONTAINER(ao->outputhbox), GTK_WIDGET(ao->recordlabel));
+	gtk_container_add(GTK_CONTAINER(ao->recordhbox), GTK_WIDGET(ao->recordlabel));
 
 // recording formats combo
 	ao->recordformats = gtk_combo_box_text_new();
@@ -365,12 +396,17 @@ void audioout_init(audioout *ao, snd_pcm_format_t format, unsigned int rate, uns
 	gtk_combo_box_text_append(GTK_COMBO_BOX_TEXT(ao->recordformats), "2", "flac");
 	g_object_set((gpointer)ao->recordformats, "active-id", "0", NULL);
 	g_signal_connect(GTK_COMBO_BOX(ao->recordformats), "changed", G_CALLBACK(recordformats_changed), (void *)ao->recordformats);
-	gtk_container_add(GTK_CONTAINER(ao->outputhbox), GTK_WIDGET(ao->recordformats));
+	gtk_container_add(GTK_CONTAINER(ao->recordhbox), GTK_WIDGET(ao->recordformats));
+
+// record switch vertical box
+	ao->recordswitchvbox = gtk_box_new(GTK_ORIENTATION_VERTICAL, 5);
+	gtk_container_add(GTK_CONTAINER(ao->outputhbox), ao->recordswitchvbox);
+	//gtk_box_pack_start(GTK_BOX(ao->outputhbox), ao->vbox1, TRUE, TRUE, 0);
 
 // record switch
 	ao->recordswitch = gtk_switch_new();
 	g_signal_connect(GTK_SWITCH(ao->recordswitch), "state-set", G_CALLBACK(recordswitch_state_set), (void *)ao);
-	gtk_container_add(GTK_CONTAINER(ao->outputhbox), GTK_WIDGET(ao->recordswitch));
+	gtk_container_add(GTK_CONTAINER(ao->recordswitchvbox), GTK_WIDGET(ao->recordswitch));
 	//gtk_box_pack_start(GTK_BOX(ao->toolbarframehbox), ao->recordswitch, FALSE, FALSE, 0);
 
 	gchar *device;
@@ -604,11 +640,17 @@ void audiojam_init(audiojam *aj, int maxchains, int maxeffects, snd_pcm_format_t
 		{
 			aj->aec[i].ae[j].parent = &(aj->aec[i]);
 			aj->aec[i].ae[j].handle = NULL;
+			aj->aec[i].ae[j].index = j;
 			aj->aec[i].ae[j].format = aj->aec[i].format;
 			aj->aec[i].ae[j].rate = aj->aec[i].rate;
 			aj->aec[i].ae[j].channels = aj->aec[i].channels;
 			if ((ret=pthread_mutex_init(&(aj->aec[i].ae[j].effectmutex), NULL))!=0)
 				printf("effect mutex init failed, %d\n", ret);
+		}
+		aj->aec[i].aeorder = malloc(sizeof(int) * aj->aec[i].effects);
+		for(j=0;j<aj->aec[i].effects;j++)
+		{
+			aj->aec[i].aeorder[j] = -1;
 		}
 	}
 	audiojam_loadfromdb(aj);
@@ -644,6 +686,7 @@ void audiojam_close(audiojam *aj)
 			pthread_mutex_destroy(&(aj->aec[c].ae[i].effectmutex));
 		}
 		free(aj->aec[c].ae);
+		free(aj->aec[c].aeorder);
 		pthread_mutex_destroy(&(aj->aec[c].rackmutex));
 	}
 	free(aj->aec);
