@@ -110,10 +110,10 @@ static void* encoder_thread(void* args)
 			{
 				switch (aen->avformat)
 				{
-					case AV_SAMPLE_FMT_S16P:
+					case AV_SAMPLE_FMT_S16:
 						memcpy(aen->frame->data[0], aen->codecbuffer, aen->codecframesize);
 						break;
-					case AV_SAMPLE_FMT_FLTP:
+					case AV_SAMPLE_FMT_FLT:
 						i = 0;
 						signed short *srci = (signed short *)aen->codecbuffer;
 						float *dsti = (float *)aen->frame->data[0];
