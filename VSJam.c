@@ -175,9 +175,16 @@ static void outputdevicescombo_changed(GtkWidget *combo, gpointer data)
 		aec = &(aj->aec[i]);
 		if (aec->id)
 		{
-			gchar *device;
+			//gchar *device;
+			//g_object_get((gpointer)aec->inputdevices, "active-id", &device, NULL);
+			//audioeffectchain_create_thread(aec, device, aec->frames, aec->channelbuffers, aec->mx);
+			//g_free(device);
+
 			g_object_get((gpointer)aec->inputdevices, "active-id", &device, NULL);
-			audioeffectchain_create_thread(aec, device, aec->frames, aec->channelbuffers, aec->mx);
+			if (get_devicetype(device)==hardwaredevice)
+				audioeffectchain_create_thread(aec, device, aec->frames, aec->channelbuffers, aec->mx);
+			else
+				audioeffectchain_create_thread_ffmpeg(aec, device, aec->frames, aec->channelbuffers, aec->mx);
 			g_free(device);
 		}
 	}

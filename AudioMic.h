@@ -31,8 +31,8 @@ typedef struct
 	float prescale;
 	char *buffer;
 	int buffersize, bufferframes, buffersamples;
-	int capturebuffersize;
-	int nullsamples;
+	snd_pcm_uframes_t capturebuffersize;
+	int nullsamples, multichannel;
 	snd_pcm_sframes_t availp;
 	snd_pcm_sframes_t delayp;
 }microphone;

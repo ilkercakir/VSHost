@@ -23,14 +23,16 @@ long_line_behaviour=1
 long_line_column=72
 
 [files]
-current_page=6
+current_page=7
 FILE_NAME_0=3808;C;0;EUTF-8;1;1;0;%2Fhome%2Fpi%2FDesktop%2FC%2FVSHost%2FVSHost.c;0;4
-FILE_NAME_1=0;C;0;EUTF-8;1;1;0;%2Fhome%2Fpi%2FDesktop%2FC%2FVSHost%2FVStudio.c;0;4
-FILE_NAME_2=14010;C;0;EUTF-8;1;1;0;%2Fhome%2Fpi%2FDesktop%2FC%2FVSHost%2FVSJam.c;0;4
-FILE_NAME_3=0;C;0;EUTF-8;1;1;0;%2Fhome%2Fpi%2FDesktop%2FC%2FVSHost%2FVSJam.h;0;4
-FILE_NAME_4=10499;C;0;EUTF-8;1;1;0;%2Fhome%2Fpi%2FDesktop%2FC%2FVSHost%2FVSEffect.c;0;4
-FILE_NAME_5=0;C;0;EUTF-8;1;1;0;%2Fhome%2Fpi%2FDesktop%2FC%2FVSHost%2FVSEffect.h;0;4
-FILE_NAME_6=0;C;0;EUTF-8;1;1;0;%2Fhome%2Fpi%2FDesktop%2FC%2FVSHost%2FVSEffectShared.h;0;4
+FILE_NAME_1=2018;C;0;EUTF-8;1;1;0;%2Fhome%2Fpi%2FDesktop%2FC%2FVSHost%2FVStudio.c;0;4
+FILE_NAME_2=4759;C;0;EUTF-8;1;1;0;%2Fhome%2Fpi%2FDesktop%2FC%2FVSHost%2FVSJam.c;0;4
+FILE_NAME_3=40739;C;0;EUTF-8;1;1;0;%2Fhome%2Fpi%2FDesktop%2FC%2FVSHost%2FYUV420RGBgl.c;0;4
+FILE_NAME_4=30751;C;0;EUTF-8;1;1;0;%2Fhome%2Fpi%2FDesktop%2FC%2FVSHost%2FVSTMediaPlayer.c;0;4
+FILE_NAME_5=19570;C;0;EUTF-8;1;1;0;%2Fhome%2Fpi%2FDesktop%2FC%2FVSHost%2FVSTVideoPlayer.c;0;4
+FILE_NAME_6=17668;C;0;EUTF-8;1;1;0;%2Fhome%2Fpi%2FDesktop%2FC%2FVSHost%2FVSEffect.c;0;4
+FILE_NAME_7=3523;C;0;EUTF-8;1;1;0;%2Fhome%2Fpi%2FDesktop%2FC%2FVSHost%2FAudioMic.c;0;4
+FILE_NAME_8=609;C;0;EUTF-8;1;1;0;%2Fhome%2Fpi%2FDesktop%2FC%2FVSHost%2FAudioMic.h;0;4
 
 [VTE]
 last_dir=/home/pi/Desktop/C/Cover.cairo.pi

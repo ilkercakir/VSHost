@@ -124,6 +124,7 @@ void audioeffectchain_unloadeffect(audioeffectchain *aec, int effect);
 void audioeffectchain_order(audioeffectchain *aec, int effect);
 void audioeffectchain_unorder(audioeffectchain *aec, int effect);
 void audioeffectchain_close(audioeffectchain *aec);
+gboolean audioeffectchain_led(gpointer data);
 
 devicetype get_devicetype(char *device);
 #endif

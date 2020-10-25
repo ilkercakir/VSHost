@@ -59,13 +59,37 @@ int init_audio_hw_mic(microphone *m)
 		printf("cannot set sample rate (%s)\n", snd_strerror(err));
 		return(err);
 	}
+	else
+	{
+		unsigned int rte;
+		if ((err = snd_pcm_hw_params_get_rate(m->hw_params, &rte, 0)) < 0)
+		{
+			printf("cannot get sample rate (%s)\n", snd_strerror(err));
+			return(err);
+		}
+		else
+		{
+			//printf("rate %d\n", rte);
+		}
+	}
+
+	unsigned int rte;
+	if ((err = snd_pcm_hw_params_get_rate(m->hw_params, &rte, 0)) < 0)
+	{
+		printf("cannot get sample rate (%s)\n", snd_strerror(err));
+		return(err);
+	}
+	else
+	{
+		//printf("rate %d\n", rte);
+	}
 
 	for (m->micchannels=1;m->micchannels<=2;m->micchannels++)
 	{
 		if (snd_pcm_hw_params_test_channels(m->capture_handle, m->hw_params, m->micchannels) == 0)
 		{
-			break;
 //printf("supported input channels: %d\n", m->micchannels);
+			break;
 		}
 	}
 
@@ -84,9 +108,10 @@ int init_audio_hw_mic(microphone *m)
 	m->capturebuffersize = m->micbuffersize * 6; // 6 buffers
 	m->prescale = 1.0 / sqrt(m->micchannels);
 //printf("buffersize %d\n", m->capturebuffersize);
-	if ((err = snd_pcm_hw_params_set_buffer_size(m->capture_handle, m->hw_params, m->capturebuffersize)) < 0)
+	//if ((err = snd_pcm_hw_params_set_buffer_size(m->capture_handle, m->hw_params, m->capturebuffersize)) < 0)
+	if ((err = snd_pcm_hw_params_set_buffer_size_near(m->capture_handle, m->hw_params, &(m->capturebuffersize))) < 0)
 	{
-		printf("Unable to set buffer size %d for capture: %s\n", m->capturebuffersize, snd_strerror(err));
+		printf("Unable to set buffer size %ld for capture: %s\n", m->capturebuffersize, snd_strerror(err));
 		return err;
 	}
 
@@ -169,6 +194,7 @@ void init_mic(microphone *m, char* device, snd_pcm_format_t format, unsigned int
 	m->buffer = malloc(m->buffersize);
 	memset(m->buffer, 0, m->buffersize);
 	m->nullsamples = 0; // false
+	m->multichannel = 1; // true
 }
 
 int read_mic(microphone *m)
@@ -197,17 +223,24 @@ int read_mic(microphone *m)
 	}
 	else
 	{
-		for(i=0;i<m->micbufferframes;i++)
+		if (m->multichannel && (m->micchannels == m->channels))
 		{
-			// convert to mono
-			signed short destvalue = 0;
-			for(j=0;j<m->micchannels;j++)
+			memcpy(dest, src, m->buffersize);
+		}
+		else
+		{
+			for(i=0;i<m->micbufferframes;i++)
 			{
-				destvalue += src[i*m->micchannels+j] * m->prescale;
+				// convert to mono
+				signed short destvalue = 0;
+				for(j=0;j<m->micchannels;j++)
+				{
+					destvalue += src[i*m->micchannels+j] * m->prescale;
+				}
+				// copy to output channels
+				for(j=0;j<m->channels;j++)
+					dest[i*m->channels+j] = destvalue;
 			}
-			// copy to output channels
-			for(j=0;j<m->channels;j++)
-				dest[i*m->channels+j] = destvalue;
 		}
 	}
 
