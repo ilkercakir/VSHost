@@ -784,6 +784,7 @@ static void button7_clicked(GtkWidget *button, gpointer data)
 // success
 				}
 			}
+			g_slist_free(filelist);
 			button3_clicked(vpw->button3, plp);
 			button4_clicked(vpw->button4, plp);
 		}
@@ -875,6 +876,7 @@ static void button11_clicked(GtkWidget *button, gpointer data)
 			gtk_list_store_append(vpw->store, &(vpw->iter));
 			gtk_list_store_set(vpw->store, &(vpw->iter), COL_ID, i++, COL_FILEPATH, chosenfile->data, -1);
 		}
+		g_slist_free(filelist);
 	}
 	gtk_widget_destroy(dialog);
 }
