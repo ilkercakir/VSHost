@@ -128,6 +128,95 @@ void audioout_create_thread(audioout *ao, char *device, unsigned int frames)
 	pthread_mutex_destroy(&(ao->mxmutex));
 }
 
+static gpointer audioout_thread_pulseaudio0(gpointer args)
+{
+	int ctype = PTHREAD_CANCEL_ASYNCHRONOUS;
+	int ctype_old;
+	pthread_setcanceltype(ctype, &ctype_old);
+
+	audioout *ao = (audioout *)args;
+	audioencoder *aen = (audioencoder *)&(ao->aen);
+	//mxthreadparameters *tp = (mxthreadparameters *)&(ao->tp);
+	paplayer pa;
+
+	//speaker *spk = &(tp->spk);
+
+	init_audiomixer(ao->mixerChannels, MX_BLOCKING, ao->format, ao->rate, ao->frames, ao->channels, &(ao->mx));
+
+	pthread_mutex_lock(&(ao->mxmutex));
+	ao->mxready = 1;
+	pthread_cond_signal(&(ao->mxinitcond));
+	pthread_mutex_unlock(&(ao->mxmutex));
+
+	//init_spk(spk, tp->device, ao->format, ao->rate, ao->channels);
+	init_paplayer(&pa, ao->format, ao->rate, ao->channels);
+	//int err;
+	//if ((err=init_audio_hw_spk(spk)))
+	//{
+	//	printf("Init spk error %d\n", err);
+	//}
+	//else
+	//{
+		gdk_threads_add_idle(audioout_led, ao);
+		while (readfrommixer(&(ao->mx)) != MX_STOPPED)
+		{
+			// process mixed stereo frames here
+
+			//write_spk(spk, ao->mx.outbuffer, ao->mx.outbufferframes);
+			paplayer_add(&pa, ao->mx.outbuffer, ao->mx.outbuffersize);
+
+			encoder_add_buffer(aen, ao->mx.outbuffer, ao->mx.outbuffersize); // is a blocking call !
+		}
+		//close_audio_hw_spk(spk);
+	//}
+	//close_spk(spk);
+	close_paplayer(&pa);
+
+	close_audiomixer(&(ao->mx));
+
+//printf("exiting %s\n", ao->name);
+	ao->tp.retval = 0;
+	pthread_exit(&(ao->tp.retval));
+}
+
+void audioout_create_thread_pulseaudio(audioout *ao, char *device, unsigned int frames)
+{
+	int err, ret;
+
+	ao->tp.ao = ao;
+	strcpy(ao->tp.device, device);
+	ao->tp.frames = frames;
+
+	if ((ret=pthread_mutex_init(&(ao->mxmutex), NULL))!=0)
+		printf("audio out mxmutex init failed, %d\n", ret);
+
+	if ((ret=pthread_cond_init(&(ao->mxinitcond), NULL))!=0 )
+		printf("audio aout mxinitcond init failed, %d\n", ret);
+
+	ao->mxready = 0;
+
+	err = pthread_create(&(ao->tp.tid), NULL, &audioout_thread_pulseaudio0, (void*)ao);
+	if (err)
+	{}
+//printf("thread %s\n", ao->name);
+	CPU_ZERO(&(ao->tp.cpu));
+	CPU_SET(3, &(ao->tp.cpu));
+	if ((err=pthread_setaffinity_np(ao->tp.tid, sizeof(cpu_set_t), &(ao->tp.cpu))))
+	{
+		//printf("pthread_setaffinity_np error %d\n", err);
+	}
+
+	pthread_mutex_lock(&(ao->mxmutex));
+	while (!ao->mxready)
+	{
+		pthread_cond_wait(&(ao->mxinitcond), &(ao->mxmutex));
+	}
+	pthread_mutex_unlock(&(ao->mxmutex));
+
+	pthread_cond_destroy(&(ao->mxinitcond));
+	pthread_mutex_destroy(&(ao->mxmutex));
+}
+
 void audioout_terminate_thread(audioout *ao)
 {
 	int i;
@@ -141,6 +230,34 @@ void audioout_terminate_thread(audioout *ao)
 		if ((i=pthread_join(ao->tp.tid, NULL)))
 			printf("pthread_join error, %s, %d\n", ao->name, i);
 		ao->tp.tid = 0;
+	}
+}
+
+void audioout_terminate_thread_pulseaudio(audioout *ao)
+{
+	int i;
+
+	signalstop_audiomixer(&(ao->mx));
+
+	gdk_threads_add_idle(audioout_led, ao);
+
+	if (ao->tp.tid)
+	{
+		if ((i=pthread_join(ao->tp.tid, NULL)))
+			printf("pthread_join error, %s, %d\n", ao->name, i);
+		ao->tp.tid = 0;
+	}
+}
+
+odevicetype get_odevicetype(char *device)
+{
+	if (!strcmp(device, "pulseaudio"))
+	{
+		return pulseaudio;
+	}
+	else
+	{
+		return ohardwaredevice;
 	}
 }
 
@@ -160,14 +277,22 @@ static void outputdevicescombo_changed(GtkWidget *combo, gpointer data)
 				audioeffectchain_terminate_thread(aec);
 			else
 				audioeffectchain_terminate_thread_ffmpeg(aec);
+
+			gdk_threads_add_idle(audioeffectchain_led, aec);
 		}
 	}
 
-	audioout_terminate_thread(ao);
+	if (get_odevicetype(ao->tp.device)==ohardwaredevice)
+		audioout_terminate_thread(ao);
+	else
+		audioout_terminate_thread_pulseaudio(ao);
 
 	gchar *device;
 	g_object_get((gpointer)ao->outputdevices, "active-id", &device, NULL);
-	audioout_create_thread(ao, device, ao->frames);
+	if (get_odevicetype(device)==ohardwaredevice)
+		audioout_create_thread(ao, device, ao->frames);
+	else
+		audioout_create_thread_pulseaudio(ao, device, ao->frames);
 	g_free(device);
 
 	for(i=0;i<aj->maxchains;i++)
@@ -345,11 +470,12 @@ void audioout_init(audioout *ao, snd_pcm_format_t format, unsigned int rate, uns
 // output devices vbox
 	ao->outputdevicesvbox = gtk_box_new(GTK_ORIENTATION_VERTICAL, 5);
 	gtk_container_add(GTK_CONTAINER(ao->outputhbox), ao->outputdevicesvbox);
-	//gtk_box_pack_start(GTK_BOX(ao->outputhbox), ao->vbox1, TRUE, TRUE, 0);
+	//gtk_box_pack_start(GTK_BOX(ao->outputhbox), ao->outputdevicesvbox, FALSE, TRUE, 0);
 
 // output devices combo
 	ao->outputdevices = gtk_combo_box_text_new();
 	populate_output_devices_list(ao->outputdevices);
+	gtk_combo_box_text_append(GTK_COMBO_BOX_TEXT(ao->outputdevices), "pulseaudio", "Pulse Audio"); // output to pulse audio
 	g_signal_connect(GTK_COMBO_BOX(ao->outputdevices), "changed", G_CALLBACK(outputdevicescombo_changed), ao);
 	gtk_container_add(GTK_CONTAINER(ao->outputdevicesvbox), ao->outputdevices);
 	//gtk_box_pack_start(GTK_BOX(ao->outputdevicesvbox), ao->outputdevices, TRUE, TRUE, 0);

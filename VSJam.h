@@ -14,6 +14,7 @@
 #include "AudioMixer.h"
 
 #include "AudioEncoder.h"
+#include "PulseAudio.h"
 
 typedef struct
 {
@@ -103,6 +104,13 @@ struct auout
 	char *recordedfilename;
 	audioencoder aen;
 };
+
+typedef enum
+{
+	onone,
+	ohardwaredevice,
+	pulseaudio
+}odevicetype;
 
 void audioout_init(audioout *ao, snd_pcm_format_t format, unsigned int rate, unsigned int channels, unsigned int frames, int mixerChannels, audiojam *aj, GtkWidget *container, GtkWidget *window);
 void audioout_close(audioout *ao);

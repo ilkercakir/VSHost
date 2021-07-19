@@ -103,6 +103,35 @@ audioCQstatus audioCQ_remove(audiopipe *p)
 	return(ret);
 }
 
+audioCQstatus audioCQ_removeVB(audiopipe *p, char *outbuffer, int outbuffersize)
+{
+	int offset, bytesleft, bytestocopy, length, ret;
+
+	pthread_mutex_lock(&(p->pipemutex));
+	length = (p->rear - p->front + p->cqbuffersize) % p->cqbuffersize;
+	if (length<outbuffersize)
+	{
+		memset(outbuffer, 0, outbuffersize);
+		ret = p->status;
+//printf("cq_remove null buffer %d\n", outbuffersize);
+	}
+	else
+	{
+		for(offset=0,bytesleft=outbuffersize;bytesleft;bytesleft-=bytestocopy)
+		{
+			bytestocopy = (p->front+bytesleft>p->cqbuffersize?p->cqbuffersize-p->front:bytesleft);
+			memcpy(outbuffer+offset, p->cqbuffer+p->front, bytestocopy);
+			offset += bytestocopy;
+			p->front += bytestocopy; p->front %= p->cqbuffersize;
+		}
+		pthread_cond_signal(&(p->pipehighcond));
+		ret = p->status;
+//printf("cq_remove %d\n", outbuffersize);
+	}
+	pthread_mutex_unlock(&(p->pipemutex));
+	return(ret);
+}
+
 void audioCQ_signalstop(audiopipe *p)
 {
 	pthread_mutex_lock(&(p->pipemutex));
