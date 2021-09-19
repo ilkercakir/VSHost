@@ -475,7 +475,6 @@ void audioout_init(audioout *ao, snd_pcm_format_t format, unsigned int rate, uns
 // output devices combo
 	ao->outputdevices = gtk_combo_box_text_new();
 	populate_output_devices_list(ao->outputdevices);
-	gtk_combo_box_text_append(GTK_COMBO_BOX_TEXT(ao->outputdevices), "pulseaudio", "Pulse Audio"); // output to pulse audio
 	g_signal_connect(GTK_COMBO_BOX(ao->outputdevices), "changed", G_CALLBACK(outputdevicescombo_changed), ao);
 	gtk_container_add(GTK_CONTAINER(ao->outputdevicesvbox), ao->outputdevices);
 	//gtk_box_pack_start(GTK_BOX(ao->outputdevicesvbox), ao->outputdevices, TRUE, TRUE, 0);

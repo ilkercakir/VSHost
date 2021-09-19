@@ -245,6 +245,14 @@ void populate_input_devices_list(GtkWidget *comboinputdev)
 	}
 	while (1);
 	//printf("%d cards found\n", count);
+
+	strcpy(devicename, "mediafile");
+	gtk_combo_box_text_append(GTK_COMBO_BOX_TEXT(comboinputdev), devicename, "FFMPEG Media File"); // input file
+	if (!inpreset)
+	{
+		inpreset = 1;
+		g_object_set((gpointer)comboinputdev, "active-id", devicename, NULL);
+	}
 }
 
 void populate_output_devices_list(GtkWidget *combooutputdev)
@@ -342,4 +350,12 @@ void populate_output_devices_list(GtkWidget *combooutputdev)
 	}
 	while (1);
 	//printf("%d cards found\n", count);
+
+	strcpy(devicename, "pulseaudio");
+	gtk_combo_box_text_append(GTK_COMBO_BOX_TEXT(combooutputdev), devicename, "Pulse Audio"); // output to pulse audio
+	if (!outpreset)
+	{
+		outpreset = 1;
+		g_object_set((gpointer)combooutputdev, "active-id", devicename, NULL);
+	}
 }

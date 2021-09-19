@@ -1296,7 +1296,6 @@ void audioeffectchain_init(audioeffectchain *aec, char *name, int id, audiomixer
 // combo box
 	aec->inputdevices = gtk_combo_box_text_new();
 	populate_input_devices_list(aec->inputdevices); // input hardware devices
-	gtk_combo_box_text_append(GTK_COMBO_BOX_TEXT(aec->inputdevices), "mediafile", "FFMPEG Media File"); // input file
 	g_signal_connect(GTK_COMBO_BOX(aec->inputdevices), "changed", G_CALLBACK(inputdevicescombo_changed), aec);
 	gtk_container_add(GTK_CONTAINER(aec->inputhbox), aec->inputdevices);
 
