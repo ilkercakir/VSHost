@@ -288,7 +288,7 @@ void init_shaders(GLuint *program_out)
 		"   v_texCoord = a_texCoord;  \n"
 		"}                            \n";
 
-	GLbyte fShaderStr[] =  
+	GLbyte fShaderStr[] = 
 		"varying vec2 v_texCoord;                            \n"
 		"uniform sampler2D s_texture;                        \n"
 		"void main()                                         \n"
@@ -352,6 +352,7 @@ void init_shaders_rgba(GLuint *program_out)
 	int status;
 
 	GLbyte vShaderStr[] =  
+		"#version 140                 \n"
 		"attribute vec4 a_position;   \n"
 		"attribute vec2 a_texCoord;   \n"
 		"varying vec2 v_texCoord;     \n"
@@ -359,16 +360,18 @@ void init_shaders_rgba(GLuint *program_out)
 		"{                            \n"
 		"   gl_Position = a_position; \n"
 		"   v_texCoord = a_texCoord;  \n"
-		"}                            \n";
+		"}                            \n\0";
 
-	GLbyte fShaderStr[] =  
+	GLbyte fShaderStr[] = 
+		"#version 140                                        \n"
+		"precision mediump float;                            \n"
 		"varying vec2 v_texCoord;                            \n"
 		"uniform sampler2D s_texture;                        \n"
 		"void main()                                         \n"
 		"{                                                   \n"
 		"  gl_FragColor = texture2D(s_texture, v_texCoord);  \n"
 		//"  gl_FragColor = vec4(1.0, 0.0, 1.0, 1.0);\n"
-		"}                                                   \n";
+		"}                                                   \n\0";
 
 	vertex = create_shader(GL_VERTEX_SHADER, (const GLchar*)vShaderStr);
 	if (!vertex)
@@ -522,6 +525,7 @@ void init_shaders_yuv420(GLuint *program_out)
 	int status;
 
 	GLbyte vShaderStr[] = 
+		"#version 140                 \n"
 		"attribute vec4 a_position;   \n"
 		"attribute vec2 a_texCoord;   \n"
 		"varying vec2 v_texCoord;     \n"
@@ -529,9 +533,11 @@ void init_shaders_yuv420(GLuint *program_out)
 		"{                            \n"
 		"   gl_Position = a_position; \n"
 		"   v_texCoord = a_texCoord;  \n"
-		"}                            \n";
+		"}                            \n\0";
 
 	GLbyte fShaderStr[] =
+		"#version 140                                          \n"
+		"precision mediump float;                              \n"
 		"varying vec2 v_texCoord;                              \n"
 		"uniform mat3 yuv2rgb;                                 \n"
 		"uniform sampler2D y_texture;                          \n"
@@ -549,7 +555,7 @@ void init_shaders_yuv420(GLuint *program_out)
 		"  vec3 rgb=yuv*yuv2rgb;                               \n"
 
 		"  gl_FragColor=vec4(rgb, 1.0);                        \n"
-		"}                                                     \n";
+		"}                                                     \n\0";
 
 	vertex = create_shader(GL_VERTEX_SHADER, (const GLchar*)vShaderStr);
 	if (!vertex)
@@ -704,6 +710,7 @@ void init_shaders_yuv422(GLuint *program_out)
 	int status;
 
 	GLbyte vShaderStr[] = 
+		"#version 140                 \n"
 		"attribute vec4 a_position;   \n"
 		"attribute vec2 a_texCoord;   \n"
 		"varying vec2 v_texCoord;     \n"
@@ -711,9 +718,11 @@ void init_shaders_yuv422(GLuint *program_out)
 		"{                            \n"
 		"   gl_Position = a_position; \n"
 		"   v_texCoord = a_texCoord;  \n"
-		"}                            \n";
+		"}                            \n\0";
 
 	GLbyte fShaderStr[] =
+		"#version 140                                          \n"
+		"precision mediump float;                              \n"
 		"varying vec2 v_texCoord;                              \n"
 		"uniform mat3 yuv2rgb;                                 \n"
 		"uniform sampler2D y_texture;                          \n"
@@ -731,7 +740,7 @@ void init_shaders_yuv422(GLuint *program_out)
 		"  vec3 rgb=yuv*yuv2rgb;                               \n"
 
 		"  gl_FragColor=vec4(rgb, 1.0);                        \n"
-		"}                                                     \n";
+		"}                                                     \n\0";
 
 	vertex = create_shader(GL_VERTEX_SHADER, (const GLchar*)vShaderStr);
 	if (!vertex)
@@ -793,11 +802,11 @@ void init_ogl_rgba(oglparameters *op)
 	glGenTextures(1, &(ogl->tex));
 	glActiveTexture(GL_TEXTURE0);
 	glBindTexture(GL_TEXTURE_2D, ogl->tex);
-
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, op->linewidth, op->height, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, op->linewidth, op->height, 0, GL_RGBA, GL_UNSIGNED_BYTE, op->buf);
 //printf("init_ogl_rgba %d %d\n", ogl->width, ogl->height);
-	glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP);
-	glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP);
+
+	glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+	glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
 	glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 	glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
 
@@ -882,7 +891,7 @@ void init_ogl_yuv420(oglparameters *op)
 	glGenTextures(3, &(ogl->texyuv[0]));
 	glActiveTexture(GL_TEXTURE0);
 	glBindTexture(GL_TEXTURE_2D, ogl->texyuv[0]);
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, op->linewidth, op->height, 0, GL_LUMINANCE, GL_UNSIGNED_BYTE, NULL);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_LUMINANCE, op->linewidth, op->height, 0, GL_LUMINANCE, GL_UNSIGNED_BYTE, NULL);
 
 	glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
 	glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
@@ -891,7 +900,7 @@ void init_ogl_yuv420(oglparameters *op)
 
 	glActiveTexture(GL_TEXTURE1);
 	glBindTexture(GL_TEXTURE_2D, ogl->texyuv[1]);
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, op->linewidth/2, op->height/2, 0, GL_LUMINANCE, GL_UNSIGNED_BYTE, NULL);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_LUMINANCE, op->linewidth/2, op->height/2, 0, GL_LUMINANCE, GL_UNSIGNED_BYTE, NULL);
 
 	glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
 	glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
@@ -900,7 +909,7 @@ void init_ogl_yuv420(oglparameters *op)
 
 	glActiveTexture(GL_TEXTURE2);
 	glBindTexture(GL_TEXTURE_2D, ogl->texyuv[2]);
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, op->linewidth/2, op->height/2, 0, GL_LUMINANCE, GL_UNSIGNED_BYTE, NULL);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_LUMINANCE, op->linewidth/2, op->height/2, 0, GL_LUMINANCE, GL_UNSIGNED_BYTE, NULL);
 
 	glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
 	glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
@@ -1070,7 +1079,8 @@ void init_ogl(oglparameters *op)
 
 void tex2D_rgba(oglstate *ogl, char *rgba)
 {
-	glBindTexture(GL_TEXTURE_2D, ogl->tex);
+	//glBindTexture(GL_TEXTURE_2D, ogl->tex);
+	glActiveTexture(GL_TEXTURE0);
 	glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, ogl->linewidth, ogl->height, GL_RGBA, GL_UNSIGNED_BYTE, rgba);
 }
 
@@ -1295,7 +1305,7 @@ void oglidle_thread_init_ogl(oglidle *i, YUVformats fmt, int width, int height, 
 {
 	oglstate *ogl = (oglstate*)&(i->ogl);
 	oglparameters op;
-	int imagesize, j;
+	int imagesize;
 
 	op.fmt = ogl->fmt = fmt;
 	op.width = ogl->width = width;
@@ -1310,8 +1320,13 @@ void oglidle_thread_init_ogl(oglidle *i, YUVformats fmt, int width, int height, 
 		case RGBA :
 			imagesize = op.linewidth * op.height * 4;
 			op.buf = malloc(imagesize);
-			for(j=0;j<imagesize;j++)
-				op.buf[j] = 0x90;			
+			//int i;
+			//for(j=0;j<imagesize;j++)
+			//	op.buf[j] = 0x90;
+			FILE *f = fopen("./images/Splash.data", "rb");
+			fread(op.buf, 1, imagesize, f);
+			fclose(f);
+			//printf("read\n");
 			break;
 		case YUV422:
 			break;

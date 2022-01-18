@@ -326,7 +326,7 @@ int start_encoder(audioencoder *aen, char *filename, enum AVCodecID id, enum AVS
 //printf("extradata_size %d\n", aen->codeccontext->extradata_size);
 							if (!aen->stream->codecpar->extradata && aen->codeccontext->extradata)
 							{
-								aen->stream->codecpar->extradata = av_malloc(aen->codeccontext->extradata_size + FF_INPUT_BUFFER_PADDING_SIZE);
+								aen->stream->codecpar->extradata = av_malloc(aen->codeccontext->extradata_size + AV_INPUT_BUFFER_PADDING_SIZE);
 								if (!aen->stream->codecpar->extradata)
 								{
 									printf("Could not allocate extradata buffer to copy parser data.\n");

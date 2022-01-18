@@ -16,7 +16,7 @@
 #include <glib.h>
 
 #include <pulse/pulseaudio.h>
-#include <pulse/i18n.h>
+//#include <pulse/i18n.h>
 #include <sndfile.h>
 
 #include <alsa/asoundlib.h>

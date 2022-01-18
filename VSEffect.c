@@ -246,17 +246,20 @@ void audioeffect_init(audioeffect *ae, int id)
 				gtk_box_pack_start(GTK_BOX(ae->hbox), ae->parameter[i].vbox, TRUE, TRUE, 0);
 				break;			
 		}
-
+		
 		switch (ae->parameter[i].ptype)
 		{
 			case pt_none:
 				break;
 			case pt_switch:
+				ae->parameter[i].swbox = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 5);
+				gtk_container_add(GTK_CONTAINER(ae->parameter[i].vbox), ae->parameter[i].swbox);
+				
 				w = ae->parameter[i].pwidget = gtk_switch_new();
 				gtk_switch_set_active(GTK_SWITCH(w), ae->parameter[i].value);
 				g_signal_connect(GTK_SWITCH(w), "state-set", G_CALLBACK(widget_state_set), &(ae->parameter[i]));
-				gtk_container_add(GTK_CONTAINER(ae->parameter[i].vbox), w);
-				//gtk_box_pack_start(GTK_BOX(ae->parameter[i].vbox), w, TRUE, TRUE, 0);
+				gtk_container_add(GTK_CONTAINER(ae->parameter[i].swbox), w);
+				//gtk_box_pack_start(GTK_BOX(ae->parameter[i].swbox), w, TRUE, TRUE, 0);
 				break;
 			case pt_scale:
 				ae->parameter[i].adj = gtk_adjustment_new(ae->parameter[i].minval + ae->parameter[i].maxval - ae->parameter[i].value, ae->parameter[i].minval, ae->parameter[i].maxval, 0.1, 1, 0);
@@ -489,6 +492,26 @@ gboolean audioeffectchain_led(gpointer data)
 	return FALSE;
 }
 
+gboolean init_videoplayerwidgets_idle(gpointer data)
+{
+	playlistparams *plp = (playlistparams *)data;
+
+//printf("");
+	init_videoplayerwidgets(plp, 640, 360);
+
+	return FALSE;
+}
+
+gboolean close_videoplayerwidgets_idle(gpointer data)
+{
+	playlistparams *plp = (playlistparams *)data;
+
+//printf("");
+	close_videoplayerwidgets(plp);
+
+	return FALSE;
+}
+
 static gpointer audioeffectchain_thread0(gpointer args)
 {
 	int ctype = PTHREAD_CANCEL_ASYNCHRONOUS;
@@ -570,7 +593,7 @@ static gpointer audioeffectchain_thread_ffmpeg0(gpointer args)
 	vpwidgets *vpw = &(tp->vpw);
 
 	init_playlistparams(plp, vpw, 20, aec->format, aec->rate, aec->channels, aec->frames, 20*1024, 4); // video, frames, cqframes, thread_count
-	init_videoplayerwidgets(plp, 640, 360);
+	gdk_threads_add_idle(init_videoplayerwidgets_idle, plp);
 
 	connect_audiojack(tp->channelbuffers, &(tp->jack), aec->mx);
 
@@ -586,7 +609,7 @@ static gpointer audioeffectchain_thread_ffmpeg0(gpointer args)
 
 	close_audiojack(&(tp->jack));
 
-	close_videoplayerwidgets(plp);
+	gdk_threads_add_idle(close_videoplayerwidgets_idle, plp);
 	close_playlistparams(plp);
 
 //printf("exiting %s\n", aec->name);

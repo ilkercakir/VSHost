@@ -27,6 +27,7 @@ typedef struct
 	int resetrequired;
 	parametertype ptype;
 	GtkWidget *vbox;
+	GtkWidget *swbox;
 	GtkWidget *pwidget;
 	GtkWidget *label;
 	GtkAdjustment *adj;

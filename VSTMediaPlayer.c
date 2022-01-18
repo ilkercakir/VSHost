@@ -1208,11 +1208,6 @@ void init_videoplayerwidgets(playlistparams *plp, int playWidth, int playHeight)
 	g_signal_connect(vpw->vpwindow, "destroy", G_CALLBACK(vp_destroy), (void*)vpw);
 
 	g_signal_connect(vpw->vpwindow, "realize", G_CALLBACK(vp_realize_cb), (void*)vpw);
-//printf("realized\n");
-
-// vertical box
-	vpw->playerbox = gtk_box_new(GTK_ORIENTATION_VERTICAL, 5);
-	gtk_container_add(GTK_CONTAINER(vpw->vpwindow), vpw->playerbox);
 
 // box1 contents begin
 // vertical box
@@ -1231,14 +1226,10 @@ void init_videoplayerwidgets(playlistparams *plp, int playWidth, int playHeight)
 	g_signal_connect(vpw->hscale, "button-release-event", G_CALLBACK(scale_released), (void*)vpw);
 	gtk_container_add(GTK_CONTAINER(vpw->box1), vpw->hscale);
 
-// horizontal box
-	vpw->horibox = gtk_box_new (GTK_ORIENTATION_HORIZONTAL, 5);
-	gtk_container_add(GTK_CONTAINER(vpw->box1), vpw->horibox);
-
 // horizontal button box
     vpw->button_box = gtk_button_box_new(GTK_ORIENTATION_HORIZONTAL);
     gtk_button_box_set_layout((GtkButtonBox *)vpw->button_box, GTK_BUTTONBOX_START);
-    gtk_container_add(GTK_CONTAINER(vpw->horibox), vpw->button_box);
+    gtk_container_add(GTK_CONTAINER(vpw->box1), vpw->button_box);
 
 // button prev
 	vpw->button9 = gtk_button_new_with_label("Prev");
@@ -1276,7 +1267,7 @@ void init_videoplayerwidgets(playlistparams *plp, int playWidth, int playHeight)
 	vpw->scrolled_window = gtk_scrolled_window_new(NULL, NULL);
 	gtk_container_set_border_width(GTK_CONTAINER(vpw->scrolled_window), 10);
 	gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(vpw->scrolled_window), GTK_POLICY_AUTOMATIC, GTK_POLICY_ALWAYS);
-	//gtk_widget_set_size_request(vpw->scrolled_window, vpw->playerWidth, vpw->playerHeight);
+	gtk_widget_set_size_request(vpw->scrolled_window, vpw->playerWidth, vpw->playerHeight);
 	//gtk_container_add(GTK_CONTAINER(vpw->box2), vpw->scrolled_window);
 	gtk_box_pack_start(GTK_BOX(vpw->box2), vpw->scrolled_window, TRUE, TRUE, 0);
 
@@ -1315,6 +1306,9 @@ void init_videoplayerwidgets(playlistparams *plp, int playWidth, int playHeight)
 
 // box2 contents end
 
+// vertical box
+	vpw->playerbox = gtk_box_new(GTK_ORIENTATION_VERTICAL, 5);
+	gtk_container_add(GTK_CONTAINER(vpw->vpwindow), vpw->playerbox);
 
 	vpw->notebook = gtk_notebook_new();
 	vpw->nbpage1 = gtk_label_new("Player");
